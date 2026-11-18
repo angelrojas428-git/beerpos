@@ -277,6 +277,36 @@ CREATE TRIGGER trg_decrement_beer_stock
   AFTER INSERT ON transactions
   FOR EACH ROW EXECUTE FUNCTION decrement_beer_stock();
 
+-- Cierre de caja / turnos.
+-- Un turno (OPEN -> CLOSED) por establecimiento a la vez. El efectivo esperado se
+-- calcula desde `transactions` del rango [opened_at, cierre]:
+--   expected_usd = opening_float_usd + SUM(amount_usd) de pagos en efectivo.
+--   difference_usd = counted_usd - expected_usd.
+CREATE TABLE IF NOT EXISTS cash_shifts (
+    id SERIAL PRIMARY KEY,
+    establishment_id INT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+    opened_by INT REFERENCES staff(id) ON DELETE SET NULL,
+    opened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP,
+    closed_by INT REFERENCES staff(id) ON DELETE SET NULL,
+    status VARCHAR(10) NOT NULL DEFAULT 'OPEN',
+    opening_float_usd DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    cash_sales_usd DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    other_sales_usd DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    total_sales_usd DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    expected_usd DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    counted_usd DECIMAL(12, 2),
+    difference_usd DECIMAL(12, 2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_shifts_est ON cash_shifts(establishment_id, status, opened_at DESC);
+
+-- Solo un turno OPEN por establecimiento.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cash_shifts_open ON cash_shifts(establishment_id) WHERE status = 'OPEN';
+
 -- NOTE: clients.access_token stores a sha256 hash (see backend/src/lib/token.js).
 -- Existing plaintext tokens from legacy databases must be hashed once with:
 --   node backend/scripts/migrateTokenHash.js

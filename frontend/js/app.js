@@ -48,6 +48,11 @@ function app() {
     stock: { beer_stock: null, beer_stock_min: 0, low_stock: false },
     stockInput: null,
     stockMinInput: 0,
+    cash: { open: false, shift: null, totals: null, expected_usd: 0 },
+    cashOpeningFloat: 0,
+    cashCounted: null,
+    cashNotes: '',
+    cashHistory: [],
     view: 'login', // 'login' | 'bartender' | 'client' | 'display'
     tab: 'fast',
     darkMode: false,
@@ -930,6 +935,42 @@ function app() {
         this.stockInput = data.beer_stock;
         this.showToast('success', 'Stock ajustado', `Quedan ${data.beer_stock} cerveza(s).`);
       } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async loadCash() {
+      this.cashLoading = true;
+      try {
+        this.cash = await this.api('/cash/current');
+      } catch (e) { console.error(e); }
+      finally { this.cashLoading = false; }
+    },
+    async openCash() {
+      try {
+        this.cash = await this.api('/cash/open', {
+          method: 'POST',
+          body: JSON.stringify({ opening_float_usd: this.cashOpeningFloat })
+        });
+        this.showToast('success', 'Caja abierta', `Fondo inicial: $${Number(this.cashOpeningFloat).toFixed(2)}`);
+      } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async closeCash() {
+      if (this.cashCounted === null || this.cashCounted === '') {
+        return this.showToast('error', 'Error', 'Ingresa el efectivo contado.');
+      }
+      try {
+        const res = await this.api('/cash/close', {
+          method: 'POST',
+          body: JSON.stringify({ counted_usd: this.cashCounted, notes: this.cashNotes })
+        });
+        const d = Number(res.shift.difference_usd);
+        this.showToast('success', 'Caja cerrada', d === 0 ? 'Caja cuadrada.' : `Diferencia: $${d.toFixed(2)}`);
+        this.cashCounted = null;
+        this.cashNotes = '';
+        await this.loadCash();
+        await this.loadCashHistory();
+      } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async loadCashHistory() {
+      try { this.cashHistory = await this.api('/cash/history?limit=20'); } catch (e) { console.error(e); }
     },
     async loadReport() {
       if (!this.estId) return;

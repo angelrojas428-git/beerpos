@@ -291,6 +291,7 @@
             <button @click="tab='clients'" :class="tab==='clients'?'bg-sky-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('clients')">Clientes</button>
             <button @click="tab='credit'; loadCredit()" :class="tab==='credit'?'bg-amber-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold">Cuentas por Cobrar</button>
             <button @click="tab='reports'; loadReport()" :class="tab==='reports'?'bg-emerald-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('reports')">Reportes</button>
+            <button @click="tab='caja'; loadCash(); loadCashHistory()" :class="tab==='caja'?'bg-teal-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold">Caja</button>
             <button @click="tab='settings'" :class="tab==='settings'?'bg-slate-600':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('settings')">Ajustes</button>
         </div>
       </header>
@@ -667,6 +668,74 @@
                   </template>
                 </div>
               </template>
+            </div>
+          </div>
+        </section>
+
+        <!-- CASH / CAJA TAB -->
+        <section x-show="tab==='caja'" class="space-y-4">
+          <!-- Caja cerrada: abrir turno -->
+          <div x-show="!cash.open" class="bg-slate-900 rounded-2xl p-5 border border-slate-800 max-w-xl">
+            <h2 class="text-lg font-bold mb-1">Caja cerrada</h2>
+            <p class="text-sm text-slate-400 mb-4">Abre un turno para registrar el fondo inicial y controlar el efectivo.</p>
+            <label class="text-sm text-slate-400">Fondo inicial (USD)</label>
+            <div class="flex gap-2 mt-1">
+              <input type="number" min="0" step="0.01" x-model.number="cashOpeningFloat" class="flex-1 min-w-0 bg-slate-800 rounded-lg px-3 py-2" />
+              <button @click="openCash()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold">Abrir caja</button>
+            </div>
+          </div>
+
+          <!-- Caja abierta: totales + cierre -->
+          <template x-if="cash.open">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+                <h2 class="text-lg font-bold mb-3">Caja abierta</h2>
+                <div class="space-y-2 text-sm">
+                  <div class="flex justify-between"><span class="text-slate-400">Fondo inicial</span><span x-text="'$' + Number(cash.shift?.opening_float_usd || 0).toFixed(2)"></span></div>
+                  <div class="flex justify-between"><span class="text-slate-400">Efectivo cobrado</span><span class="text-emerald-300" x-text="'$' + Number(cash.totals?.cash_in_usd || 0).toFixed(2)"></span></div>
+                  <div class="flex justify-between"><span class="text-slate-400">Otros medios</span><span x-text="'$' + Number(cash.totals?.non_cash_in_usd || 0).toFixed(2)"></span></div>
+                  <div class="flex justify-between"><span class="text-slate-400">Ventas totales</span><span x-text="'$' + Number(cash.totals?.total_sales_usd || 0).toFixed(2)"></span></div>
+                  <div class="flex justify-between font-semibold border-t border-slate-700 pt-2"><span>Efectivo esperado</span><span class="text-amber-300" x-text="'$' + Number(cash.expected_usd || 0).toFixed(2)"></span></div>
+                </div>
+                <div class="mt-2 text-xs text-slate-500">Abierto: <span x-text="new Date(cash.shift?.opened_at).toLocaleString()"></span> · <span x-text="cash.totals?.sales_count || 0"></span> operación(es)</div>
+              </div>
+              <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+                <h2 class="text-lg font-bold mb-3">Cerrar caja</h2>
+                <label class="text-sm text-slate-400">Efectivo contado (USD)</label>
+                <input type="number" min="0" step="0.01" x-model.number="cashCounted" placeholder="0.00" class="w-full bg-slate-800 rounded-lg px-3 py-2 mt-1" />
+                <label class="text-sm text-slate-400 mt-3 block">Notas (opcional)</label>
+                <textarea x-model="cashNotes" rows="2" class="w-full bg-slate-800 rounded-lg px-3 py-2 mt-1" placeholder="Observaciones del turno"></textarea>
+                <div class="mt-3 text-sm" x-show="cashCounted !== null && cashCounted !== ''">
+                  <span class="text-slate-400">Diferencia estimada: </span>
+                  <span :class="(Number(cashCounted) - Number(cash.expected_usd || 0)) === 0 ? 'text-emerald-300' : 'text-rose-300'" x-text="'$' + (Number(cashCounted) - Number(cash.expected_usd || 0)).toFixed(2)"></span>
+                </div>
+                <button @click="closeCash()" class="w-full mt-3 py-2 rounded-lg bg-rose-600 text-white font-semibold">Cerrar caja</button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Historial de cierres -->
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+            <h3 class="font-semibold mb-3">Historial de cierres</h3>
+            <div x-show="cashHistory.length === 0" class="text-sm text-slate-500">Sin cierres registrados.</div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="text-slate-400 text-left">
+                  <tr><th class="py-2 pr-4">Fecha</th><th class="pr-4">Fondo</th><th class="pr-4">Efectivo</th><th class="pr-4">Esperado</th><th class="pr-4">Contado</th><th>Diferencia</th></tr>
+                </thead>
+                <tbody>
+                  <template x-for="s in cashHistory" :key="s.id">
+                    <tr class="border-t border-slate-800">
+                      <td class="py-2 pr-4" x-text="new Date(s.closed_at).toLocaleString()"></td>
+                      <td class="pr-4" x-text="'$' + Number(s.opening_float_usd).toFixed(2)"></td>
+                      <td class="pr-4" x-text="'$' + Number(s.cash_sales_usd).toFixed(2)"></td>
+                      <td class="pr-4" x-text="'$' + Number(s.expected_usd).toFixed(2)"></td>
+                      <td class="pr-4" x-text="'$' + Number(s.counted_usd).toFixed(2)"></td>
+                      <td :class="Number(s.difference_usd) === 0 ? 'text-emerald-300' : 'text-rose-300'" x-text="'$' + Number(s.difference_usd).toFixed(2)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
             </div>
           </div>
         </section>
