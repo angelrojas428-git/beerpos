@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+frontend/dist
+.git
+.gitignore
+*.log
+backend/data
+backend/uploads
+backend/backups
+backend/.env
+.env
+PLAN_LANZAMIENTO.md

@@ -1,0 +1,17 @@
+{
+  "name": "BeerPOS",
+  "short_name": "BeerPOS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "description": "POS y control de despacho de cervezas en tiempo real",
+  "icons": [
+    {
+      "src": "/assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

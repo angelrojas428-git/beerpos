@@ -1,0 +1,15 @@
+node_modules/
+.env
+*.log
+npm-debug.log*
+.DS_Store
+dist/
+coverage/
+backend/node_modules/
+backend/.env
+frontend/.DS_Store
+
+# Runtime data — never commit (contains session tokens, PII, uploaded logos)
+backend/data/
+backend/backups/
+backend/uploads/

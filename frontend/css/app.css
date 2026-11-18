@@ -1,0 +1,101 @@
+/* BeerPOS custom styles & animations */
+:root { color-scheme: light; --bg-body: #ffffff; --bg-panel: #f3f4f6; --bg-card: #ffffff; --text-primary: #111827; --text-secondary: #6b7280; --border: #e5e7eb; --bg-input: #f9fafb; --text-muted: #9ca3af; }
+.dark { color-scheme: dark; --bg-body: #0f172a; --bg-panel: #1e293b; --bg-card: #1e293b; --text-primary: #f1f5f9; --text-secondary: #94a3b8; --border: #334155; --bg-input: #0f172a; --text-muted: #64748b; }
+body { -webkit-tap-highlight-color: transparent; background-color: var(--bg-body); color: var(--text-primary); }
+body { --brand-primary: #0f172a; --brand-secondary: #f59e0b; }
+.dark body { --brand-primary: #f1f5f9; --brand-secondary: #fbbf24; }
+.brand-accent { color: var(--brand-secondary); }
+.brand-panel { border-color: var(--brand-secondary); background-color: var(--bg-panel); }
+
+.confirm-anim {
+  animation: pop 0.35s ease-out, pulseGlow 1.2s ease-in-out infinite;
+}
+@keyframes pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes pulseGlow {
+  0%,100% { filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  50% { filter: drop-shadow(0 0 18px rgba(255,255,255,0.35)); }
+}
+
+/* Large tap targets on tablets */
+button { touch-action: manipulation; }
+input, select { font-size: 16px; }
+
+/* Prevent text overflow / word breaking everywhere */
+* { word-wrap: break-word; overflow-wrap: break-word; }
+
+/* Global containment: box-sizing + min-width guard for flex/grid children */
+*, *::before, *::after { box-sizing: border-box; }
+.min-w-0 { min-width: 0; }
+
+/* Images and canvas never exceed their parent */
+img, canvas, svg { max-width: 100%; height: auto; }
+
+/* Tables: always scroll horizontally inside their wrapper, never overflow parent */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.table-wrap table { min-width: 100%; }
+
+/* Stat card numbers: prevent overflow on large values */
+.stat-card { overflow: hidden; }
+.stat-card .stat-value { font-variant-numeric: tabular-nums; line-height: 1.1; word-break: break-all; }
+
+/* Client row in modal: structured grid that contains all children */
+.client-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: start; }
+.client-row-info { min-width: 0; overflow: hidden; }
+.client-row-info .client-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-row-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; min-width: 0; }
+.client-row-balance { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.client-row-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; max-width: 100%; }
+.client-row-buttons .btn-icon { flex: 0 0 auto; }
+.client-row-buttons .btn-grow { flex: 1 1 auto; min-width: 0; }
+
+/* On narrow screens, stack the client row vertically */
+@media (max-width: 640px) {
+  .client-row { grid-template-columns: minmax(0, 1fr); }
+  .client-row-actions { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .client-row-buttons { width: 100%; }
+}
+
+/* Reports filter bar: structured wrap */
+.reports-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; }
+.reports-filters .filter-group { display: flex; flex-direction: column; min-width: 0; }
+.reports-filters .filter-group input,
+.reports-filters .filter-group select { max-width: 100%; }
+.reports-filters .filter-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-left: auto; }
+
+/* QR canvas containment */
+.qr-canvas-wrap { overflow: hidden; display: inline-block; max-width: 100%; }
+.qr-canvas-wrap canvas { display: block; max-width: 100%; height: auto; }
+
+/* Toast centrado seguro en móviles */
+.toast-container { left: 50%; transform: translateX(-50%); max-width: 92vw; }
+.toast-container > div { max-width: 92vw; min-width: 0 !important; }
+
+/* Line clamp utility (not in default Tailwind build) */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Twemoji: cross-browser emoji rendering as SVG images
+   Ensures identical rendering in Chrome, Edge, Firefox, Safari */
+img.emoji {
+  display: inline-block;
+  height: 1em;
+  width: 1em;
+  margin: 0 .05em 0 .1em;
+  vertical-align: -0.1em;
+  background: none;
+  border: none;
+  box-shadow: none;
+  max-width: none;
+  max-height: none;
+}
+
+/* Fallback: if Twemoji SVGs fail to load (offline), hide broken images
+   and let the browser fall back to native emoji rendering */
+img.emoji[src=""] { display: none; }

@@ -1,0 +1,61 @@
+{
+  "name": "beerpos-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "build:js": "node scripts/buildFrontend.js",
+    "build:css": "tailwindcss -c ../frontend/tailwind.config.cjs -i ../frontend/css/tailwind.input.css -o ../frontend/dist/tailwind.css --minify",
+    "build": "npm run build:js && npm run build:css",
+    "prestart": "npm run build",
+    "start": "node src/index.js",
+    "predev": "npm run build",
+    "dev": "concurrently \"nodemon --watch src --ext js --exec node src/index.js\" \"chokidar 'frontend/js/**/*.js' 'frontend/index.html' 'frontend/css/**/*.css' -c 'npm run build'\" \"browser-sync start --proxy http://localhost:3001 --host 0.0.0.0 --files 'frontend/dist/**' --no-notify --port 3000 --ui-port 3002\"",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --forceExit",
+    "db:init": "node src/db/init.js",
+    "backup:list": "node scripts/backup-s3.js",
+    "backup:restore": "node scripts/backup-s3.js --restore",
+    "platform:admin": "node scripts/seedPlatformAdmin.js",
+    "seed:demo": "node scripts/seedDemo.js",
+    "smoke": "node scripts/smoke-test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1170.0",
+    "@twemoji/api": "^17.0.3",
+    "alpinejs": "^3.14.9",
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.4",
+    "helmet": "^8.3.0",
+    "multer": "^2.5.0",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.12.0",
+    "qrcode": "^1.5.4",
+    "redis": "^6.3.1",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
+    "speakeasy": "^2.0.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@twemoji/api": "^17.0.3",
+    "alpinejs": "^3.14.9",
+    "browser-sync": "^3.0.4",
+    "chokidar-cli": "^3.0.0",
+    "concurrently": "^10.0.7",
+    "esbuild": "^0.25.5",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.1.4",
+    "tailwindcss": "^3.4.17"
+  },
+  "overrides": {
+    "deepmerge": "4.1.1",
+    "glob": "14.0.6",
+    "minimatch": "11.0.8"
+  }
+}

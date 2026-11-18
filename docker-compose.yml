@@ -1,0 +1,81 @@
+# BeerPOS production stack: Caddy (TLS) -> app -> PostgreSQL + Redis.
+# Copy .env.example to .env and fill required values (DOMAIN, passwords, secrets), then:
+#   docker compose up -d --build
+#
+# Caddy terminates HTTPS automatically (Let's Encrypt) for ${DOMAIN} and proxies to the app.
+# The app is not exposed directly; all traffic goes through Caddy on 80/443.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: beerpos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: beerpos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beerpos -d beerpos"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  app:
+    build: .
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: postgres://beerpos:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/beerpos
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN in .env (e.g. https://midominio.com)}
+      TRUST_PROXY: "1"
+      FINGERPRINT_ENCRYPTION_KEY: ${FINGERPRINT_ENCRYPTION_KEY:?set FINGERPRINT_ENCRYPTION_KEY in .env}
+      JWT_SECRET: ${JWT_SECRET:-}
+      SESSION_TTL_MS: "28800000"
+    # Not published: traffic reaches the app only through Caddy.
+    expose:
+      - "3001"
+    volumes:
+      - sessions:/app/data
+      - uploads:/app/backend/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env (e.g. midominio.com)}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  sessions:
+  uploads:
+  caddy_data:
+  caddy_config:

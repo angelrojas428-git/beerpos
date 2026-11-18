@@ -1,0 +1,6 @@
+# Caddyfile — automatic HTTPS (Let's Encrypt) for the BeerPOS domain.
+# Set DOMAIN in .env (e.g. midominio.com). Caddy provisions and renews certs automatically.
+{$DOMAIN} {
+	reverse_proxy app:3001
+	encode gzip
+}
