@@ -4,16 +4,30 @@ dotenv.config();
 
 const isProd = process.env.NODE_ENV === 'production';
 
+// Resolve the CORS origin:
+//   1. explicit CORS_ORIGIN (single origin or comma-separated list), unless it's "*";
+//   2. otherwise fall back to Render's injected public URL (RENDER_EXTERNAL_URL),
+//      so a fresh free deploy works with zero manual config.
+function resolveCorsRaw() {
+  const explicit = (process.env.CORS_ORIGIN || '').trim();
+  if (explicit && explicit !== '*') return explicit;
+  const renderUrl = (process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/+$/, '');
+  if (renderUrl && renderUrl !== '*') return renderUrl;
+  return explicit;
+}
+const corsRaw = resolveCorsRaw();
+
 // In production, refuse to boot with insecure defaults.
 if (isProd) {
   const problems = [];
-  const cors = (process.env.CORS_ORIGIN || '').trim();
-  if (!cors || cors === '*') {
+  if (!corsRaw || corsRaw === '*') {
     problems.push('CORS_ORIGIN debe fijarse a uno o más orígenes reales (no "*") en producción.');
   }
+  // fingerprint.js hashes any non-hex/non-64 value to 32 bytes, so any strong secret
+  // (>=16 chars) is valid; only reject empty/trivial values.
   const fpKey = process.env.FINGERPRINT_ENCRYPTION_KEY;
-  if (!fpKey || fpKey.length < 64) {
-    problems.push('FINGERPRINT_ENCRYPTION_KEY debe configurarse (64 caracteres hex) en producción.');
+  if (!fpKey || fpKey.length < 16) {
+    problems.push('FINGERPRINT_ENCRYPTION_KEY debe configurarse (mínimo 16 caracteres) en producción.');
   }
   if (problems.length) {
     console.error('FATAL: configuración de producción inválida:\n - ' + problems.join('\n - '));
@@ -37,7 +51,7 @@ export const config = {
   port: Number(process.env.PORT) || 3001,
   databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/beerpos',
   // In dev, default to '*' for local tooling (BrowserSync). In prod, fail-fast above guarantees a real value.
-  corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN) || (isProd ? undefined : '*'),
+  corsOrigin: parseCorsOrigin(corsRaw) || (isProd ? undefined : '*'),
   // Number of reverse proxies in front of the app (0 = direct). Set TRUST_PROXY=1 behind Caddy/Nginx.
   trustProxy: Number(process.env.TRUST_PROXY) || 0,
   // JWT_SECRET is reserved for future use; no insecure default.
