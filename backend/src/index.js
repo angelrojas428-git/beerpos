@@ -24,6 +24,7 @@ import healthRouter from './routes/health.js';
 import clientFingerprintsRouter from './routes/client-fingerprints.js';
 import platformRouter from './routes/platform.js';
 import creditRouter from './routes/credit.js';
+import inventoryRouter from './routes/inventory.js';
 import { startFastSaleExpiryCron, startBackupCron, startSubscriptionCron } from './lib/cron.js';
 import { setIO } from './lib/socket.js';
 import { getStaffSession, closeRedis } from './lib/session.js';
@@ -68,6 +69,7 @@ app.use('/api/events', eventsRouter);
 app.use('/api/client-fingerprints', clientLimiter, clientFingerprintsRouter);
 app.use('/api/platform', platformRouter);
 app.use('/api/credit', creditRouter);
+app.use('/api/inventory', inventoryRouter);
 
 // Serve frontend (static) for simple PWA deployment
 const __filename = fileURLToPath(import.meta.url);

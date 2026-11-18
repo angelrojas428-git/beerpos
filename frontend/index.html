@@ -260,6 +260,9 @@
           <div class="flex gap-2 text-sm">
             <div class="bg-slate-800 rounded-lg px-3 py-2">Vendidas hoy: <b x-text="summary?.today?.beers_sold || 0"></b></div>
             <div class="bg-slate-800 rounded-lg px-3 py-2">Despachadas: <b x-text="summary?.today?.beers_redeemed || 0"></b></div>
+            <div x-show="stock.beer_stock !== null && stock.beer_stock !== undefined" class="rounded-lg px-3 py-2" :class="stock.low_stock ? 'bg-rose-900/50 text-rose-200' : 'bg-slate-800'">
+              Stock: <b x-text="stock.beer_stock"></b>
+            </div>
           </div>
           <div x-show="!online || pendingSyncCount > 0" class="mt-3 rounded-lg border px-3 py-2 text-sm"
             :class="syncError ? 'border-rose-500/50 bg-rose-900/30 text-rose-200' : 'border-amber-500/40 bg-amber-500/10 text-amber-100'">
@@ -743,6 +746,29 @@
               </div>
             </div>
 
+          </div>
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 mt-4">
+            <h3 class="font-semibold mb-3">Inventario / Stock</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+              <div>
+                <label class="text-sm text-slate-400">Stock actual (cervezas)</label>
+                <input type="number" min="0" step="1" x-model.number="stockInput" placeholder="Sin control" class="w-full bg-slate-800 rounded-lg px-3 py-2 mt-1" />
+              </div>
+              <div>
+                <label class="text-sm text-slate-400">Alerta (mínimo)</label>
+                <input type="number" min="0" step="1" x-model.number="stockMinInput" class="w-full bg-slate-800 rounded-lg px-3 py-2 mt-1" />
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button @click="saveStock()" class="px-4 py-2 rounded-lg bg-sky-500 text-slate-950 font-semibold">Guardar</button>
+                <button @click="adjustStock(1)" class="px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold" title="Sumar 1">+1</button>
+                <button @click="adjustStock(-1)" class="px-3 py-2 rounded-lg bg-rose-600 text-white font-semibold" title="Restar 1">−1</button>
+                <button @click="disableStock()" class="px-3 py-2 rounded-lg bg-slate-700 text-slate-200 text-sm">Desactivar</button>
+              </div>
+            </div>
+            <div class="mt-3 text-sm" :class="stock.low_stock ? 'text-rose-300' : 'text-slate-400'">
+              <span x-show="stock.beer_stock === null || stock.beer_stock === undefined">Stock no controlado. Ingresa una cantidad para empezar a descontar automáticamente por cada venta.</span>
+              <span x-show="stock.beer_stock !== null && stock.beer_stock !== undefined" x-text="stock.low_stock ? `Stock bajo: quedan ${stock.beer_stock} (mínimo ${stock.beer_stock_min})` : `Quedan ${stock.beer_stock} cerveza(s). Se descuenta automáticamente en cada venta.`"></span>
+            </div>
           </div>
           <div class="mt-4 text-sm text-slate-400 bg-slate-900 rounded-2xl p-4 border border-slate-800">
             QR estático de barra: imprime un QR que apunte a la URL del cliente (cada cliente tiene su enlace único con token). Para un QR fijo de "auto-despacho" en barra, el flujo recomendado es que el cliente abra su enlace y confirme desde su teléfono tras escanear un cartel con instrucciones.

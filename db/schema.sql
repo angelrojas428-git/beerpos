@@ -250,6 +250,33 @@ CREATE TRIGGER trg_credit_ledger_immutable
   BEFORE UPDATE OR DELETE ON credit_ledger
   FOR EACH ROW EXECUTE FUNCTION prevent_credit_ledger_mutation();
 
+-- Inventario / stock de cerveza.
+-- `beer_stock` = unidades actuales (NULL = stock no controlado).
+-- `beer_stock_min` = umbral para alertar stock bajo.
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS beer_stock INT;
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS beer_stock_min INT NOT NULL DEFAULT 10;
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS stock_updated_at TIMESTAMP;
+
+-- Descuenta stock automáticamente al insertar una venta.
+-- Aplica a FAST_SALE (venta rápida), REDEMPTION (retiro de cliente), COMBO_PURCHASE
+-- (combo) y CREDIT_SALE (venta a crédito). No afecta pagos ni ajustes.
+-- Si `beer_stock` es NULL (stock no controlado) no hace nada.
+CREATE OR REPLACE FUNCTION decrement_beer_stock() RETURNS trigger AS $$
+BEGIN
+  UPDATE establishments
+     SET beer_stock = GREATEST(0, beer_stock - NEW.quantity),
+         stock_updated_at = NOW()
+   WHERE id = NEW.establishment_id
+     AND beer_stock IS NOT NULL
+     AND NEW.transaction_type IN ('FAST_SALE', 'REDEMPTION', 'COMBO_PURCHASE', 'CREDIT_SALE');
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_decrement_beer_stock ON transactions;
+CREATE TRIGGER trg_decrement_beer_stock
+  AFTER INSERT ON transactions
+  FOR EACH ROW EXECUTE FUNCTION decrement_beer_stock();
+
 -- NOTE: clients.access_token stores a sha256 hash (see backend/src/lib/token.js).
 -- Existing plaintext tokens from legacy databases must be hashed once with:
 --   node backend/scripts/migrateTokenHash.js

@@ -45,6 +45,9 @@ function setupEmojiObserver() {
 function app() {
   return {
     loading: true,
+    stock: { beer_stock: null, beer_stock_min: 0, low_stock: false },
+    stockInput: null,
+    stockMinInput: 0,
     view: 'login', // 'login' | 'bartender' | 'client' | 'display'
     tab: 'fast',
     darkMode: false,
@@ -518,6 +521,8 @@ function app() {
       this.newLogoUrl = this.est.logo_url || '';
       this.newThemeColor = this.est.theme_color || '#0f172a';
       this.newSecondaryColor = this.est.secondary_color || '#f59e0b';
+      this.stockInput = this.est.beer_stock === undefined ? null : this.est.beer_stock;
+      this.stockMinInput = Number(this.est.beer_stock_min || 0);
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.newThemeColor);
       this.newRate = this.est.exchange_rate?.usd_to_ves
         ? Number(this.est.exchange_rate.usd_to_ves)
@@ -883,6 +888,48 @@ function app() {
     },
     async loadSummary() {
       try { this.summary = await this.api(`/transactions/summary/${this.estId}`); } catch(e){}
+      await this.loadStock();
+    },
+    async loadStock() {
+      try {
+        const data = await this.api(`/inventory/${this.estId}`);
+        this.stock = data;
+      } catch (e) { /* stock no disponible */ }
+    },
+    async saveStock() {
+      try {
+        const data = await this.api(`/inventory/${this.estId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ beer_stock: this.stockInput, beer_stock_min: this.stockMinInput })
+        });
+        this.stock = data;
+        this.stockInput = data.beer_stock;
+        this.stockMinInput = data.beer_stock_min;
+        this.showToast('success', 'Stock actualizado', `Quedan ${data.beer_stock ?? '∞'} cerveza(s).`);
+      } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async disableStock() {
+      try {
+        const data = await this.api(`/inventory/${this.estId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ beer_stock: null })
+        });
+        this.stock = data;
+        this.stockInput = null;
+        this.stockMinInput = data.beer_stock_min;
+        this.showToast('success', 'Stock desactivado', 'Ya no se controla el inventario.');
+      } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async adjustStock(delta) {
+      try {
+        const data = await this.api(`/inventory/${this.estId}/adjust`, {
+          method: 'POST',
+          body: JSON.stringify({ delta })
+        });
+        this.stock = data;
+        this.stockInput = data.beer_stock;
+        this.showToast('success', 'Stock ajustado', `Quedan ${data.beer_stock} cerveza(s).`);
+      } catch (e) { this.showToast('error', 'Error', e.message); }
     },
     async loadReport() {
       if (!this.estId) return;
