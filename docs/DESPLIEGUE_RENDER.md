@@ -1,153 +1,125 @@
-# Despliegue en Render — Checklist paso a paso
+# Despliegue GRATIS en Render (sin tarjeta) — BeerPOS
 
-> BeerPOS · Node/Express + PostgreSQL + Socket.io/SSE · Dockerfile incluido.
-> Este documento es la guía operativa para el primer despliegue y las pruebas remotas.
+> BeerPOS · Node/Express + PostgreSQL + Socket.io/SSE · Docker.
+> Esta guía deja la app corriendo en Internet **gratis**, sin tarjeta, para probar en remoto.
+> El archivo `render.yaml` ya está configurado para el plan **free**.
 
 ---
 
-## 0. Requisitos previos
+## 0. Qué necesitas
 
-- Cuenta en [Render](https://render.com) (plan **Starter** o superior: el plan free suspende el servicio por inactividad y rompe Socket.io/SSE).
-- Repositorio en GitHub/GitLab con este código.
-- Un dominio (opcional) apuntando a Render, o usar la URL `*.onrender.com`.
+- Cuenta en [GitHub](https://github.com) (ya la tienes).
+- Cuenta en [Render](https://render.com) creada con **"Sign up with GitHub"**. El plan gratis **no pide tarjeta**.
+- Nada más. No necesitas CLI ni dominio propio (usas la URL `*.onrender.com`).
 
 > ⚠️ **Nunca** subas tu `.env` real ni las carpetas `backend/data`, `backend/backups`, `backend/uploads` (ya están en `.gitignore`).
 
 ---
 
-## 1. Subir el código
+## 1. Subir el código a GitHub
+
+Desde la carpeta del proyecto (`D:\app-licorerias`):
 
 ```bash
 git add .
-git commit -m "chore: deploy hardening"
-git push origin main
+git commit -m "chore: deploy"
+git branch -M main
 ```
 
-Verifica que **no** se suban datos sensibles:
+Asegúrate de que **no** se suban datos sensibles:
 
 ```bash
-git ls-files | grep -E "backend/(data|backups|uploads)"   # debe salir vacío
+git ls-files | grep -E "backend/(data|backups|uploads)"
+# debe salir vacío
 ```
+
+Crea un repositorio **vacío** en GitHub (sin README, sin .gitignore) y sube:
+
+```bash
+git remote add origin https://github.com/TU-USUARIO/beerpos.git
+git push -u origin main
+```
+
+- Si Git pide autenticación, inicia sesión en el navegador (Git Credential Manager) o usa un **Personal Access Token** como contraseña.
+- Verifica en GitHub que el código aparece y que **no** están `backend/data`, `backend/backups`, `backend/uploads`.
 
 ---
 
 ## 2. Crear el Blueprint en Render
 
-1. Render → **New → Blueprint**.
-2. Selecciona el repo. Render leerá `render.yaml` y creará:
-   - Servicio web **Docker** (`beerpos`).
-   - Base de datos **PostgreSQL** gestionada (`beerpos-db`).
-3. Espera al primer build/deploy.
+1. Entra a <https://dashboard.render.com> → **New** → **Blueprint**.
+2. Conecta tu cuenta de GitHub y selecciona el repo `beerpos`.
+3. Render lee `render.yaml` y crea:
+   - **Web Service** Docker → plan **Free**.
+   - **Postgres** → plan **Free**.
+4. Confirma y espera el primer build/deploy.
+
+> Si Render te pide elegir plan, elige **Free** en ambos (web y base de datos).
 
 ---
 
-## 3. Configurar variables de entorno (Dashboard → Environment)
+## 3. Configurar variables de entorno
 
-Obligatorias / recomendadas:
+En el servicio → **Environment** (Render las pide al crear el Blueprint si están como `sync: false`):
 
 | Variable | Valor | Notas |
 |---|---|---|
-| `NODE_ENV` | `production` | ya está en render.yaml |
-| `CORS_ORIGIN` | `https://TU-APP.onrender.com` | **obligatoria**, nunca `*` |
-| `FINGERPRINT_ENCRYPTION_KEY` | generada por Render | 64 hex |
-| `DATABASE_URL` | provista por Render | desde `beerpos-db` |
-| `REDIS_URL` | `redis://...` o Key Value | **recomendado** para sesiones persistentes |
-| `TRUST_PROXY` | `1` | ya está |
-| `SESSION_TTL_MS` | `28800000` | 8 h |
+| `CORS_ORIGIN` | `https://beerpos.onrender.com` | **obligatoria**, nunca `*`. Usa la URL real que Render te asigne. |
+| `JWT_SECRET` | cadena larga aleatoria | p. ej. `openssl rand -hex 32` |
+| `BOOTSTRAP_ADMIN_NAME` | `admin` | usuario del super-administrador |
+| `BOOTSTRAP_ADMIN_PIN` | PIN de 6–12 dígitos | ej. `483920`. **No** uses `1234`. |
+| `REDIS_URL` | opcional | para sesiones persistentes (Render Key Value) |
 | `S3_BACKUP_*` | opcional | backups offsite |
 
-> Si no configuras `REDIS_URL`, las sesiones se guardan en `/app/data` (disco efímero): se pierden en cada reinicio y el staff vuelve a iniciar sesión.
+`DB_AUTOINIT=1`, `NODE_ENV`, `TRUST_PROXY` y `FINGERPRINT_ENCRYPTION_KEY` ya vienen en `render.yaml` (la clave de fingerprint la genera Render).
 
 ---
 
-## 4. Inicializar la base de datos (una sola vez)
+## 4. Inicialización automática (sin shell)
 
-En Render → servicio → **Shell**:
+El plan Free **no tiene shell** ni *pre-deploy command*, así que **no** hay que ejecutar `db:init` ni `seedPlatformAdmin` a mano. En el **primer arranque**, la app:
+
+1. Aplica `db/schema.sql` (idempotente) porque `DB_AUTOINIT=1`.
+2. Crea el super-admin con `BOOTSTRAP_ADMIN_NAME` / `BOOTSTRAP_ADMIN_PIN` si no existe.
+
+En los **reinicios** no duplica el admin ni cambia el PIN. Para rotar el PIN: pon `BOOTSTRAP_ADMIN_ROTATE=1`, redeploy, y vuelve a `0`.
+
+---
+
+## 5. Verificar
+
+- **Health:** `https://beerpos.onrender.com/api/health/live` → `{"ok":true,"db":"up"}`.
+- **Consola super-admin:** `https://beerpos.onrender.com/admin.html` → entra con `BOOTSTRAP_ADMIN_NAME` / `BOOTSTRAP_ADMIN_PIN`.
+- **Onboarding:** crea el primer comercio desde la consola.
+- **Smoke test automático** (desde `backend/`):
 
 ```bash
-npm run db:init
+# PowerShell
+$env:SMOKE_BASE_URL='https://beerpos.onrender.com'
+$env:SMOKE_ADMIN_NAME='admin'; $env:SMOKE_ADMIN_PIN='483920'
+npm run smoke
 ```
 
-Esto crea tablas e índices. **No** crea datos demo ni credenciales por defecto.
+> La primera petición tras 15 min de inactividad tarda ~1 min (Render despierta el servicio).
 
 ---
 
-## 5. Crear el super-administrador (una sola vez)
+## 6. Límites del plan Free (importante)
 
-```bash
-node backend/scripts/seedPlatformAdmin.js <nombre> <pin-fuerte-6-a-12-digitos>
-```
+- **Se duerme** tras 15 min sin tráfico; despierta en ~1 min. Los mensajes WebSocket cuentan como actividad, así que Socket.io se mantiene mientras haya usuarios.
+- **La base de datos expira a los 30 días** (Render la borra tras 14 días de gracia). Sirve para probar; para un piloto real hay que subir el DB a plan de pago (~$6/mes).
+- **Sin disco persistente:** los logos subidos se pierden al reiniciar.
+- **750 horas/mes** por workspace; se agotan si el servicio no duerme lo suficiente.
+- **Sin backups** de la BD gratis.
 
-Ejemplo:
-
-```bash
-node backend/scripts/seedPlatformAdmin.js admin 483920
-```
-
-> No uses `1234`. El PIN se guarda hasheado (bcrypt).
+### Cuándo conviene pagar
+- Piloto comercial real, datos que deban persistir >30 días, o 24/7 sin sleeps → web service `starter` (~$7/mes) y/o Postgres de pago.
 
 ---
 
-## 6. Verificar el despliegue
+## 7. Problemas comunes
 
-- **Health:** `https://TU-APP.onrender.com/api/health/live` → `{"ok":true,"db":"up"}`.
-- **Consola super-admin:** `https://TU-APP.onrender.com/admin.html` → inicia sesión con `<nombre>` y el PIN creado.
-- **Onboarding:** desde la consola, crea el primer comercio (nombre, dueño, PIN, precio, tasa).
-- **Barra/PWA:** `https://TU-APP.onrender.com/?est=<id>` → inicia sesión con el dueño del comercio.
-
----
-
-## 7. Dominio propio (opcional)
-
-1. Render → Settings → **Custom Domains** → añade tu dominio.
-2. Crea el registro DNS (CNAME o A) que Render indique.
-3. Render emite el certificado TLS automáticamente.
-4. Actualiza `CORS_ORIGIN` para incluir el dominio final.
-
----
-
-## 8. Backups
-
-- Local diarios a las 02:00 en `/app/backend/backups` (disco efímero).
-- **Offsite (recomendado):** configura `S3_BACKUP_*` (AWS S3, Cloudflare R2, Backblaze B2, MinIO…).
-- Probar restauración:
-  ```bash
-  npm run backup:list                 # lista backups en la nube
-  npm run backup:restore <timestamp>  # descarga un grupo a backend/backups/
-  ```
-
----
-
-## 9. Verificación post-despliegue (checklist)
-
-- [ ] `/api/health/live` responde 200 con `db: up`.
-- [ ] Login en `/admin.html` OK.
-- [ ] Alta de un comercio desde la consola OK.
-- [ ] Login de staff en la barra OK.
-- [ ] Venta rápida genera código y se despacha.
-- [ ] Registro de cliente + QR + flujo del cliente OK.
-- [ ] Carga/abono de fiado OK (con límite asignado).
-- [ ] Reporte con fechas y export CSV/Excel/PDF OK.
-- [ ] Socket.io/SSE: los cambios se reflejan en vivo.
-- [ ] HTTPS activo y `CORS_ORIGIN` correcto (sin errores de consola).
-- [ ] Backup offsite configurado y restauración probada.
-
----
-
-## 10. Rollback
-
-- Render → **Deploys** → selecciona un deploy anterior → **Rollback**.
-- Si el problema es de configuración, corrige env vars y **Manual Deploy → Clear build cache & deploy**.
-- Si hay migración de esquema problemática, restaura el backup previo (`backup:restore`) y despliega el commit anterior.
-
----
-
-## 11. Notas de seguridad ya aplicadas
-
-- Sin credenciales por defecto (los seeds demo se movieron a `scripts/seedDemo.js`, sólo dev).
-- Alta de comercios restringida a `platform_admin`.
-- Tokens de cliente hasheados en BD y sólo por header.
-- CORS restringido en producción + fail-fast si falta configuración.
-- Rate limiting en login y endpoints públicos.
-- Cabeceras de seguridad (Helmet + CSP) en producción.
-- `credit_ledger` inmutable por trigger (anti-fraude).
+- **"Build failed"**: revisa los logs del build en Render; suele ser una dependencia que no instala.
+- **Login dice credenciales inválidas**: revisa `BOOTSTRAP_ADMIN_NAME`/`PIN` y que el bootstrap corrió (logs: `[bootstrap] platform admin ... created`).
+- **CORS/consola con errores**: `CORS_ORIGIN` debe ser exactamente la URL `https://...onrender.com` (sin barra final).
+- **La web "carga" mucho la primera vez**: es el *spin-up* del plan free; espera ~1 min.

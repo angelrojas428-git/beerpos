@@ -28,6 +28,7 @@ import { startFastSaleExpiryCron, startBackupCron, startSubscriptionCron } from 
 import { setIO } from './lib/socket.js';
 import { getStaffSession, closeRedis } from './lib/session.js';
 import { pool, query } from './db/pool.js';
+import { bootstrap } from './db/bootstrap.js';
 import { runBackup, listBackups, removeBackup } from './lib/backup.js';
 
 dotenv.config();
@@ -172,6 +173,10 @@ app.delete('/api/backup/:timestamp', requireStaffSession, requireOwnerRole, asyn
 server.listen(port, '0.0.0.0', () => {
   console.log(`BeerPOS API listening on 0.0.0.0:${port}`);
 });
+
+// Optional auto-bootstrap (schema + platform admin) for hosts without shell access.
+// Gated by DB_AUTOINIT / BOOTSTRAP_ADMIN_* env vars; no-op otherwise.
+bootstrap().catch((e) => console.error('bootstrap error:', e.message));
 
 // Start cron for fast sale expiration
 startFastSaleExpiryCron();
