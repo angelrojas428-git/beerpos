@@ -320,6 +320,7 @@
                 <div class="text-sm text-amber-200 mb-1">Código generado</div>
                 <div class="text-7xl font-black tracking-widest text-amber-300" x-text="lastFastCode"></div>
                 <div class="text-sm text-slate-300 mt-2"><span x-text="lastFastQty"></span> cerveza(s)</div>
+                <button @click="printLastTicket()" :disabled="!lastTicket" class="mt-3 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed">🖨 Imprimir ticket</button>
               </div>
             </template>
           </div>
@@ -838,6 +839,26 @@
               <span x-show="stock.beer_stock === null || stock.beer_stock === undefined">Stock no controlado. Ingresa una cantidad para empezar a descontar automáticamente por cada venta.</span>
               <span x-show="stock.beer_stock !== null && stock.beer_stock !== undefined" x-text="stock.low_stock ? `Stock bajo: quedan ${stock.beer_stock} (mínimo ${stock.beer_stock_min})` : `Quedan ${stock.beer_stock} cerveza(s). Se descuenta automáticamente en cada venta.`"></span>
             </div>
+          </div>
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 mt-4">
+            <h3 class="font-semibold mb-3">Ticket / Impresión</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+              <div>
+                <label class="text-sm text-slate-400">Ancho de papel</label>
+                <select x-model="ticketWidth" @change="saveTicketPrefs()" class="w-full bg-slate-800 rounded-lg px-3 py-2 mt-1">
+                  <option value="58">58 mm</option>
+                  <option value="80">80 mm</option>
+                </select>
+              </div>
+              <label class="flex items-center gap-2 text-sm text-slate-300 pt-2">
+                <input type="checkbox" x-model="autoPrint" @change="saveTicketPrefs()" class="w-4 h-4" />
+                Imprimir automáticamente al vender
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <button @click="printLastTicket()" :disabled="!lastTicket" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold disabled:opacity-40 disabled:cursor-not-allowed">Imprimir último ticket</button>
+              </div>
+            </div>
+            <p class="text-xs text-slate-500 mt-3">Se abre el diálogo de impresión del navegador. En impresoras térmicas, elige la impresora y desactiva "Encabezados y pies de página".</p>
           </div>
           <div x-show="isOwner()" class="bg-slate-900 rounded-2xl p-5 border border-slate-800 mt-4">
             <div class="flex items-center justify-between mb-3">

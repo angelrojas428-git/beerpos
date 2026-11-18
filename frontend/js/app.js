@@ -65,7 +65,8 @@ function app() {
     numericKeypad: { visible: false, target: '', value: '' },
     fingerprints: [],
     fingerprintScanning: false,
-    estId: 1,    est: null,   staffRole: null,
+    estId: 1,    est: null,   staffRole: null,   staffName: null,
+    ticketWidth: '80', autoPrint: false, lastTicket: null,
     summary: null,
     reportDate: '',
     reportDateFrom: '',
@@ -172,6 +173,10 @@ function app() {
       }
       this.applyTheme();
 
+      const savedTicketWidth = localStorage.getItem('beerposTicketWidth');
+      if (savedTicketWidth) this.ticketWidth = savedTicketWidth;
+      this.autoPrint = localStorage.getItem('beerposAutoPrint') === 'true';
+
       const savedLang = localStorage.getItem('beerposLang');
       if (savedLang) {
         this.setLang(savedLang);
@@ -263,6 +268,7 @@ function app() {
               const session = await this.api('/auth/me');
               this.estId = session.establishment_id;
               this.staffRole = session.staff?.role || null;
+              this.staffName = session.staff?.name || null;
               this.est = await this.api(`/establishments/${this.estId}`);
               this.view = 'bartender';
               await this.loadBartender();
@@ -310,6 +316,7 @@ function app() {
         localStorage.setItem('beerposSessionToken', this.sessionToken);
         this.estId = res.staff.establishment_id;
         this.staffRole = res.staff.role || null;
+        this.staffName = res.staff.name || null;
         this.view = 'bartender';
         await this.loadBartender();
         this.connectRealtimeSocket();
@@ -1146,6 +1153,99 @@ function app() {
     money(value) {
       return Number(value || 0).toFixed(2);
     },
+    saveTicketPrefs() {
+      localStorage.setItem('beerposTicketWidth', this.ticketWidth);
+      localStorage.setItem('beerposAutoPrint', String(this.autoPrint));
+    },
+    printLastTicket() {
+      if (!this.lastTicket) return;
+      this.printTicket(this.lastTicket);
+    },
+    buildTicket(partial) {
+      this.lastTicket = {
+        code: partial.code || null,
+        client: partial.client || null,
+        items: partial.items || [],
+        total_usd: Number(partial.total_usd || 0),
+        total_ves: Number(partial.total_ves || 0),
+        method: partial.method || 'Efectivo',
+        staff: this.staffName || '',
+        at: new Date().toISOString()
+      };
+      if (this.autoPrint) this.printTicket(this.lastTicket);
+    },
+    printTicket(t) {
+      const html = this.buildTicketHtml(t);
+      let frame = document.getElementById('beerposPrintFrame');
+      if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = 'beerposPrintFrame';
+        frame.setAttribute('aria-hidden', 'true');
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        document.body.appendChild(frame);
+      }
+      const doc = frame.contentWindow.document;
+      doc.open();
+      doc.write(html);
+      doc.close();
+      const win = frame.contentWindow;
+      const doPrint = () => { try { win.focus(); win.print(); } catch (e) { /* impresión no disponible */ } };
+      if (doc.readyState === 'complete') setTimeout(doPrint, 150);
+      else win.addEventListener('load', () => setTimeout(doPrint, 150), { once: true });
+    },
+    buildTicketHtml(t) {
+      const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+      ));
+      const width = this.ticketWidth === '58' ? '58mm' : '80mm';
+      const est = this.est || {};
+      const when = t.at ? new Date(t.at) : new Date();
+      const dateStr = when.toLocaleString(this.lang === 'en' ? 'en-US' : 'es-VE');
+      const items = (t.items || []).map((it) =>
+        `<tr><td>${esc(it.qty)} x ${esc(it.name)}</td><td style="text-align:right">$${Number(it.amount || 0).toFixed(2)}</td></tr>`
+      ).join('');
+      const totalVes = Number(t.total_ves || 0) > 0
+        ? `<div class="row"><span class="muted">Total Bs.</span><span>Bs. ${Number(t.total_ves).toFixed(2)}</span></div>`
+        : '';
+      const clientRow = t.client
+        ? `<div class="row"><span class="muted">Cliente</span><span>${esc(t.client)}</span></div>`
+        : '';
+      const codeRow = t.code
+        ? `<div class="row"><span class="muted">Código</span><span>${esc(t.code)}</span></div>`
+        : '';
+      return `<!DOCTYPE html><html lang="${esc(this.lang)}"><head><meta charset="utf-8" />
+<title>Ticket</title>
+<style>
+  @page { size: ${width} auto; margin: 3mm; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #000; background: #fff; width: ${width}; margin: 0 auto; padding: 3mm; font-size: 12px; line-height: 1.35; }
+  .center { text-align: center; }
+  .muted { color: #444; }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 2px 0; }
+  td { vertical-align: top; padding: 1px 0; }
+  .dash { border-top: 1px dashed #000; margin: 5px 0; }
+  .row { display: flex; justify-content: space-between; }
+  .total { font-weight: bold; font-size: 14px; }
+  .foot { text-align: center; margin-top: 6px; }
+</style></head>
+<body>
+  <h1 class="center">${esc(est.name || 'Ticket')}</h1>
+  ${est.owner_name ? `<div class="center muted">${esc(est.owner_name)}</div>` : ''}
+  <div class="dash"></div>
+  <div class="row"><span class="muted">Fecha</span><span>${esc(dateStr)}</span></div>
+  ${t.staff ? `<div class="row"><span class="muted">Atiende</span><span>${esc(t.staff)}</span></div>` : ''}
+  ${clientRow}
+  ${codeRow}
+  <div class="dash"></div>
+  <table>${items}</table>
+  <div class="dash"></div>
+  <div class="row total"><span>TOTAL</span><span>$${Number(t.total_usd || 0).toFixed(2)}</span></div>
+  ${totalVes}
+  <div class="row"><span class="muted">Pago</span><span>${esc(t.method)}</span></div>
+  <div class="foot">Gracias por su compra</div>
+</body></html>`;
+    },
     toggleDarkMode() {
       this.darkMode = !this.darkMode;
       localStorage.setItem('beerposDarkMode', String(this.darkMode));
@@ -1511,6 +1611,13 @@ function app() {
         }
         this.lastFastCode = res.redemption.code;
         this.lastFastQty = res.redemption.quantity;
+        this.buildTicket({
+          code: res.redemption.code,
+          items: [{ qty: res.redemption.quantity, name: 'Cerveza', amount: res.amount_usd }],
+          total_usd: res.amount_usd,
+          total_ves: res.amount_ves,
+          method: 'Efectivo'
+        });
         await Promise.all([this.loadFastPending(), this.loadSummary()]);
       } catch (e) { alert(e.message); }
     },
@@ -1652,6 +1759,13 @@ function app() {
         c.current_balance = res.client.current_balance;
         await this.loadSummary();
         this.showToast('success', 'Combo cargado', `Cargadas ${qty} cervezas. Total: $${res.amount_usd} / Bs. ${res.amount_ves}`);
+        this.buildTicket({
+          client: c.full_name,
+          items: [{ qty, name: 'Cerveza', amount: res.amount_usd }],
+          total_usd: res.amount_usd,
+          total_ves: res.amount_ves,
+          method: 'Efectivo'
+        });
       } catch (e) { this.showToast('error', 'Error', e.message); }
     },
     async undoCharge(c) {
@@ -1773,6 +1887,13 @@ function app() {
         if (this.creditClients.length) await this.loadCredit();
         await this.loadSummary();
         this.showToast('success', 'Venta a crédito', `Fiado $${amount.toFixed(2)} · Debe ahora $${res.balance_after_usd.toFixed(2)}`);
+        this.buildTicket({
+          client: c.full_name,
+          items: [{ qty, name: 'Cerveza', amount }],
+          total_usd: amount,
+          total_ves: rate ? amount * rate : 0,
+          method: 'Crédito (fiado)'
+        });
       } catch (e) {
         if (e.data?.code === 'limit_exceeded') {
           const d = e.data.details || {};
