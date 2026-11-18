@@ -53,6 +53,8 @@ function app() {
     cashCounted: null,
     cashNotes: '',
     cashHistory: [],
+    staffList: [],
+    staffForm: { name: '', pin: '', role: 'bartender' },
     view: 'login', // 'login' | 'bartender' | 'client' | 'display'
     tab: 'fast',
     darkMode: false,
@@ -971,6 +973,39 @@ function app() {
     },
     async loadCashHistory() {
       try { this.cashHistory = await this.api('/cash/history?limit=20'); } catch (e) { console.error(e); }
+    },
+    async loadStaff() {
+      try { this.staffList = await this.api('/staff'); } catch (e) { console.error(e); }
+    },
+    async createStaff() {
+      if (!this.staffForm.name || !this.staffForm.pin) {
+        return this.showToast('error', 'Error', 'Nombre y PIN son obligatorios.');
+      }
+      try {
+        await this.api('/staff', { method: 'POST', body: JSON.stringify(this.staffForm) });
+        this.staffForm = { name: '', pin: '', role: 'bartender' };
+        await this.loadStaff();
+        this.showToast('success', 'Usuario creado', 'Ya puede iniciar sesión.');
+      } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async resetStaffPin(s) {
+      const pin = window.prompt(`Nuevo PIN para ${s.name} (6-12 dígitos):`);
+      if (!pin) return;
+      try {
+        await this.api('/auth/change-pin', {
+          method: 'POST',
+          body: JSON.stringify({ staff_id: s.id, new_pin: pin })
+        });
+        this.showToast('success', 'PIN actualizado', `PIN de ${s.name} cambiado.`);
+      } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async toggleStaff(s) {
+      const activating = !s.active;
+      try {
+        await this.api(`/staff/${s.id}`, { method: 'PATCH', body: JSON.stringify({ active: activating }) });
+        await this.loadStaff();
+        this.showToast('success', 'Usuario actualizado', `${s.name}: ${activating ? 'activado' : 'desactivado'}.`);
+      } catch (e) { this.showToast('error', 'Error', e.message); }
     },
     async loadReport() {
       if (!this.estId) return;

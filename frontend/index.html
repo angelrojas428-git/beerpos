@@ -292,7 +292,7 @@
             <button @click="tab='credit'; loadCredit()" :class="tab==='credit'?'bg-amber-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold">Cuentas por Cobrar</button>
             <button @click="tab='reports'; loadReport()" :class="tab==='reports'?'bg-emerald-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('reports')">Reportes</button>
             <button @click="tab='caja'; loadCash(); loadCashHistory()" :class="tab==='caja'?'bg-teal-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold">Caja</button>
-            <button @click="tab='settings'" :class="tab==='settings'?'bg-slate-600':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('settings')">Ajustes</button>
+            <button @click="tab='settings'; loadStaff()" :class="tab==='settings'?'bg-slate-600':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('settings')">Ajustes</button>
         </div>
       </header>
 
@@ -837,6 +837,46 @@
             <div class="mt-3 text-sm" :class="stock.low_stock ? 'text-rose-300' : 'text-slate-400'">
               <span x-show="stock.beer_stock === null || stock.beer_stock === undefined">Stock no controlado. Ingresa una cantidad para empezar a descontar automáticamente por cada venta.</span>
               <span x-show="stock.beer_stock !== null && stock.beer_stock !== undefined" x-text="stock.low_stock ? `Stock bajo: quedan ${stock.beer_stock} (mínimo ${stock.beer_stock_min})` : `Quedan ${stock.beer_stock} cerveza(s). Se descuenta automáticamente en cada venta.`"></span>
+            </div>
+          </div>
+          <div x-show="isOwner()" class="bg-slate-900 rounded-2xl p-5 border border-slate-800 mt-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold">Personal / Empleados</h3>
+              <button @click="loadStaff()" class="text-xs text-slate-400 underline">Actualizar</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+              <div class="sm:col-span-2">
+                <label class="text-sm text-slate-400">Nombre</label>
+                <input type="text" x-model="staffForm.name" placeholder="Nombre del empleado" class="w-full bg-slate-800 rounded-lg px-3 py-2 mt-1" />
+              </div>
+              <div>
+                <label class="text-sm text-slate-400">PIN (6-12 dígitos)</label>
+                <input type="text" inputmode="numeric" x-model="staffForm.pin" placeholder="••••••" class="w-full bg-slate-800 rounded-lg px-3 py-2 mt-1" />
+              </div>
+              <div>
+                <label class="text-sm text-slate-400">Rol</label>
+                <select x-model="staffForm.role" class="w-full bg-slate-800 rounded-lg px-3 py-2 mt-1">
+                  <option value="bartender">Bartender</option>
+                  <option value="owner">Dueño</option>
+                </select>
+              </div>
+            </div>
+            <button @click="createStaff()" class="mt-3 px-4 py-2 rounded-lg bg-sky-500 text-slate-950 font-semibold">Crear usuario</button>
+            <div class="mt-4 space-y-2">
+              <template x-for="s in staffList" :key="s.id">
+                <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-800/60 rounded-lg px-3 py-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-semibold truncate" x-text="s.name"></span>
+                    <span class="text-xs rounded px-2 py-0.5 shrink-0" :class="s.role==='owner'?'bg-amber-500/20 text-amber-200':'bg-sky-500/20 text-sky-200'" x-text="s.role"></span>
+                    <span x-show="!s.active" class="text-xs text-rose-300 shrink-0">(inactivo)</span>
+                  </div>
+                  <div class="flex gap-2 shrink-0">
+                    <button @click="resetStaffPin(s)" class="px-2 py-1 rounded bg-slate-700 text-xs">Cambiar PIN</button>
+                    <button @click="toggleStaff(s)" class="px-2 py-1 rounded text-xs" :class="s.active?'bg-rose-600 text-white':'bg-emerald-600 text-white'" x-text="s.active?'Desactivar':'Activar'"></button>
+                  </div>
+                </div>
+              </template>
+              <div x-show="staffList.length === 0" class="text-sm text-slate-500">Sin empleados.</div>
             </div>
           </div>
           <div class="mt-4 text-sm text-slate-400 bg-slate-900 rounded-2xl p-4 border border-slate-800">
