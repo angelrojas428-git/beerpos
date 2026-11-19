@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -88,7 +88,7 @@ const frontendDir = path.resolve(__dirname, '../../frontend');
 const uploadsDir = path.resolve(__dirname, '../uploads');
 app.use('/uploads', express.static(uploadsDir));
 
-app.use(express.static(frontendDir));
+app.use(express.static(frontendDir, { setHeaders: (res, path) => { if (path.endsWith('.html')) res.setHeader('Content-Type','text/html; charset=utf-8'); } }));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(frontendDir, 'index.html'));
