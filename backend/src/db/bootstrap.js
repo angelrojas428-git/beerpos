@@ -30,8 +30,7 @@ async function ensurePlatformAdmin() {
 
   const policy = validatePin(pin);
   if (!policy.ok) {
-    console.error(`[bootstrap] BOOTSTRAP_ADMIN_PIN inválido: ${policy.error}`);
-    return;
+    throw new Error(`[bootstrap] BOOTSTRAP_ADMIN_PIN inválido: ${policy.error}`);
   }
 
   const { rows } = await pool.query(
@@ -67,6 +66,7 @@ export async function bootstrap() {
       await ensureSchema();
     } catch (e) {
       console.error('[bootstrap] schema init failed:', e.message);
+      throw e;
     }
   }
 
@@ -74,5 +74,6 @@ export async function bootstrap() {
     await ensurePlatformAdmin();
   } catch (e) {
     console.error('[bootstrap] platform admin bootstrap failed:', e.message);
+    throw e;
   }
 }

@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { requireStaffSession } from '../middleware/auth.js';
 

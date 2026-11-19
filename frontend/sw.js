@@ -1,4 +1,4 @@
-﻿const CACHE = 'beerpos-v9';
+const CACHE = 'beerpos-v10';
 const ASSETS = ['/', '/index.html', '/css/app.css', '/dist/app.js', '/dist/tailwind.css', '/manifest.webmanifest', '/assets/icon.svg'];
 const DB_NAME = 'beerpos-offline';
 const STORE_NAME = 'fast-sales';
@@ -20,7 +20,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
-  // Never cache API requests Ã¢â‚¬â€ always pass through to network
+  // Never cache API requests — always pass through to network
   if (requestUrl.origin === self.location.origin && requestUrl.pathname.startsWith('/api/')) {
     if (event.request.method === 'POST'
       && requestUrl.pathname === '/api/redemptions/fast'
@@ -130,7 +130,7 @@ async function queueFastSale(request) {
     await notifyClients({
       type: 'sync-error',
       count: queue.length,
-      message: 'Venta guardada; abre la aplicaciÃƒÂ³n con conexiÃƒÂ³n para sincronizar.'
+      message: 'Venta guardada; abre la aplicación con conexión para sincronizar.'
     });
   }
   return new Response(JSON.stringify({ queued: true, pending_count: queue.length }), {
@@ -161,18 +161,18 @@ async function syncFastSales() {
       await notifyClients({ type: 'sync-complete', count: remaining.length });
       continue;
     }
-    if (response.status === 429) throw new Error('El servidor limitÃƒÂ³ temporalmente las ventas sincronizadas.');
+    if (response.status === 429) throw new Error('El servidor limitó temporalmente las ventas sincronizadas.');
     if (response.status >= 400 && response.status < 500) {
       item.failed = true;
       await saveQueueItem(item);
       await notifyClients({
         type: 'sync-error',
         count: (await getQueue()).length,
-        message: `Una venta pendiente requiere atenciÃƒÂ³n (HTTP ${response.status}).`
+        message: `Una venta pendiente requiere atención (HTTP ${response.status}).`
       });
       continue;
     }
-    throw new Error(`La sincronizaciÃƒÂ³n respondiÃƒÂ³ HTTP ${response.status}.`);
+    throw new Error(`La sincronización respondió HTTP ${response.status}.`);
   }
 }
 

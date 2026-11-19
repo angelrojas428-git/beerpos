@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { pool, query } from '../db/pool.js';
 import crypto from 'crypto';
 import { generateAccessToken, hashAccessToken } from '../lib/token.js';
@@ -41,7 +41,7 @@ router.post('/', requireStaffSession, requireStaffSessionForEst, async (req, res
     );
     if (dupPhone.rowCount > 0) {
       await db.query('ROLLBACK');
-      return res.status(409).json({ error: 'Ya existe un cliente con ese nÃºmero de telÃ©fono en este establecimiento.' });
+      return res.status(409).json({ error: 'Ya existe un cliente con ese número de teléfono en este establecimiento.' });
     }
     const access_token = generateAccessToken();
     const access_token_hash = hashAccessToken(access_token);
@@ -77,7 +77,7 @@ router.get('/token/:token', async (req, res, next) => {
        WHERE c.access_token = $1 AND (c.token_expires_at IS NULL OR c.token_expires_at > NOW())`,
       [hashAccessToken(req.params.token)]
     );
-    if (!rows[0]) return res.status(401).json({ error: 'QR invÃ¡lido o expirado.' });
+    if (!rows[0]) return res.status(401).json({ error: 'QR inválido o expirado.' });
     const client = rows[0];
     client.exchange_rate = await getLatestRate(client.establishment_id);
     res.json(client);
@@ -104,7 +104,7 @@ router.post('/token/:token/redeem', redeemLimiter, async (req, res, next) => {
     const client = rows[0];
     if (!client) {
       await db.query('ROLLBACK');
-      return res.status(401).json({ error: 'QR invÃ¡lido o expirado.' });
+      return res.status(401).json({ error: 'QR inválido o expirado.' });
     }
     if (client.current_balance < quantity) {
       await db.query('ROLLBACK');
@@ -192,7 +192,7 @@ router.post('/:id/charge-combo', requireStaffSession, async (req, res, next) => 
     if (newBalance < 0) {
       await db.query('ROLLBACK');
       transactionStarted = false;
-      return res.status(400).json({ error: 'No se puede descontar mÃ¡s cervezas de las que el cliente tiene en saldo' });
+      return res.status(400).json({ error: 'No se puede descontar más cervezas de las que el cliente tiene en saldo' });
     }
 
     const rateResult = await db.query(
@@ -297,10 +297,10 @@ router.get('/token/:token/verification-code', async (req, res, next) => {
       [hashAccessToken(token)]
     );
     const client = rows[0];
-    if (!client) return res.status(401).json({ error: 'QR invÃ¡lido o expirado.' });
+    if (!client) return res.status(401).json({ error: 'QR inválido o expirado.' });
 
-    // Solo generar cÃ³digo nuevo si el actual expirÃ³ o no existe
-    // Esto evita que mÃºltiples pestaÃ±as/dispositivos se sobrescriban mutuamente
+    // Solo generar código nuevo si el actual expiró o no existe
+    // Esto evita que múltiples pestañas/dispositivos se sobrescriban mutuamente
     const needsNew = !client.verification_code ||
       !client.verification_code_expires_at ||
       new Date(client.verification_code_expires_at) <= now;
@@ -326,7 +326,7 @@ router.post('/token/:token/verification-code/verify', async (req, res, next) => 
     const { token } = req.params;
     const { code } = req.body || {};
     if (!code || !/^\d{4}$/.test(String(code))) {
-      return res.status(400).json({ error: 'CÃ³digo de verificaciÃ³n de 4 dÃ­gitos requerido' });
+      return res.status(400).json({ error: 'Código de verificación de 4 dígitos requerido' });
     }
     const now = new Date();
     const { rows } = await query(
@@ -338,7 +338,7 @@ router.post('/token/:token/verification-code/verify', async (req, res, next) => 
          AND (token_expires_at IS NULL OR token_expires_at > NOW())`,
       [hashAccessToken(token), String(code), now]
     );
-    if (!rows[0]) return res.status(401).json({ error: 'CÃ³digo de verificaciÃ³n invÃ¡lido o expirado' });
+    if (!rows[0]) return res.status(401).json({ error: 'Código de verificación inválido o expirado' });
     res.json({ ok: true, client: rows[0] });
   } catch (e) { next(e); }
 });
@@ -363,7 +363,7 @@ router.post('/:id/token-expire', requireStaffSession, async (req, res, next) => 
   } catch (e) { next(e); }
 });
 
-// List clients with token info (staff only â€” access_token exposed only to authenticated staff)
+// List clients with token info (staff only — access_token exposed only to authenticated staff)
 router.get('/', requireStaffSession, async (req, res, next) => {
   try {
     const { establishment_id, search } = req.query;

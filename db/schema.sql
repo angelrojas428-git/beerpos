@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS client_fingerprints (
 CREATE INDEX IF NOT EXISTS idx_client_fingerprints_client ON client_fingerprints(client_id);
 CREATE INDEX IF NOT EXISTS idx_client_fingerprints_est ON client_fingerprints(establishment_id);
 
--- Audit log: registra acciones crÃ­ticas para trazabilidad y seguridad
+-- Audit log: registra acciones críticas para trazabilidad y seguridad
 CREATE TABLE IF NOT EXISTS audit_log (
     id SERIAL PRIMARY KEY,
     establishment_id INT REFERENCES establishments(id) ON DELETE CASCADE,
@@ -209,14 +209,14 @@ CREATE TABLE IF NOT EXISTS feedback (
 CREATE INDEX IF NOT EXISTS idx_feedback_est ON feedback(establishment_id, created_at);
 
 -- Cuentas por Cobrar / Fiado (credit).
--- `credit_limit_usd` = cupo mÃ¡ximo de fiado (0 = sin crÃ©dito).
+-- `credit_limit_usd` = cupo máximo de fiado (0 = sin crédito).
 -- `credit_balance_usd` = deuda actual cacheada; la fuente de verdad es `credit_ledger`.
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS credit_limit_usd   DECIMAL(10,2) NOT NULL DEFAULT 0;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS credit_balance_usd DECIMAL(10,2) NOT NULL DEFAULT 0;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS credit_hold_reason VARCHAR(120);
 
--- Ledger de crÃ©dito inmutable: cada movimiento es un asiento firmado.
---   CHARGE (venta fiado, +), PAYMENT (abono, -), CREDIT_NOTE (-), ADJUSTMENT (Â±), VOID (Â±)
+-- Ledger de crédito inmutable: cada movimiento es un asiento firmado.
+--   CHARGE (venta fiado, +), PAYMENT (abono, -), CREDIT_NOTE (-), ADJUSTMENT (±), VOID (±)
 CREATE TABLE IF NOT EXISTS credit_ledger (
     id                SERIAL PRIMARY KEY,
     establishment_id  INT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
@@ -257,9 +257,9 @@ ALTER TABLE establishments ADD COLUMN IF NOT EXISTS beer_stock INT;
 ALTER TABLE establishments ADD COLUMN IF NOT EXISTS beer_stock_min INT NOT NULL DEFAULT 10;
 ALTER TABLE establishments ADD COLUMN IF NOT EXISTS stock_updated_at TIMESTAMP;
 
--- Descuenta stock automÃ¡ticamente al insertar una venta.
--- Aplica a FAST_SALE (venta rÃ¡pida), REDEMPTION (retiro de cliente), COMBO_PURCHASE
--- (combo) y CREDIT_SALE (venta a crÃ©dito). No afecta pagos ni ajustes.
+-- Descuenta stock automáticamente al insertar una venta.
+-- Aplica a FAST_SALE (venta rápida), REDEMPTION (retiro de cliente), COMBO_PURCHASE
+-- (combo) y CREDIT_SALE (venta a crédito). No afecta pagos ni ajustes.
 -- Si `beer_stock` es NULL (stock no controlado) no hace nada.
 CREATE OR REPLACE FUNCTION decrement_beer_stock() RETURNS trigger AS $$
 BEGIN

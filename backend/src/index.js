@@ -88,9 +88,27 @@ const frontendDir = path.resolve(__dirname, '../../frontend');
 const uploadsDir = path.resolve(__dirname, '../uploads');
 app.use('/uploads', express.static(uploadsDir));
 
-app.use(express.static(frontendDir, { setHeaders: (res, path) => { if (path.endsWith('.html')) res.setHeader('Content-Type','text/html; charset=utf-8'); } }));
+app.use(express.static(frontendDir, {
+  setHeaders: (res, filePath) => {
+    const extension = path.extname(filePath).toLowerCase();
+    const contentTypes = {
+      '.css': 'text/css; charset=utf-8',
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'application/javascript; charset=utf-8',
+      '.json': 'application/json; charset=utf-8',
+      '.svg': 'image/svg+xml; charset=utf-8',
+      '.webmanifest': 'application/manifest+json; charset=utf-8',
+    };
+    if (contentTypes[extension]) res.setHeader('Content-Type', contentTypes[extension]);
+    if (extension === '.html' || path.basename(filePath) === 'sw.js') {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(frontendDir, 'index.html'));
 });
 
@@ -180,13 +198,12 @@ app.delete('/api/backup/:timestamp', requireStaffSession, requireOwnerRole, asyn
   } catch (e) { next(e); }
 });
 
+// Apply configured schema/admin bootstrap before accepting requests.
+await bootstrap();
+
 server.listen(port, '0.0.0.0', () => {
   console.log(`BeerPOS API listening on 0.0.0.0:${port}`);
 });
-
-// Optional auto-bootstrap (schema + platform admin) for hosts without shell access.
-// Gated by DB_AUTOINIT / BOOTSTRAP_ADMIN_* env vars; no-op otherwise.
-bootstrap().catch((e) => console.error('bootstrap error:', e.message));
 
 // Start cron for fast sale expiration
 startFastSaleExpiryCron();
