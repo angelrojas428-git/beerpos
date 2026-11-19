@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { pool, query } from '../db/pool.js';
 import crypto from 'crypto';
 import { generateAccessToken, hashAccessToken } from '../lib/token.js';
@@ -41,7 +41,7 @@ router.post('/', requireStaffSession, requireStaffSessionForEst, async (req, res
     );
     if (dupPhone.rowCount > 0) {
       await db.query('ROLLBACK');
-      return res.status(409).json({ error: 'Ya existe un cliente con ese número de teléfono en este establecimiento.' });
+      return res.status(409).json({ error: 'Ya existe un cliente con ese nÃºmero de telÃ©fono en este establecimiento.' });
     }
     const access_token = generateAccessToken();
     const access_token_hash = hashAccessToken(access_token);
@@ -77,7 +77,7 @@ router.get('/token/:token', async (req, res, next) => {
        WHERE c.access_token = $1 AND (c.token_expires_at IS NULL OR c.token_expires_at > NOW())`,
       [hashAccessToken(req.params.token)]
     );
-    if (!rows[0]) return res.status(401).json({ error: 'QR inválido o expirado.' });
+    if (!rows[0]) return res.status(401).json({ error: 'QR invÃ¡lido o expirado.' });
     const client = rows[0];
     client.exchange_rate = await getLatestRate(client.establishment_id);
     res.json(client);
@@ -104,7 +104,7 @@ router.post('/token/:token/redeem', redeemLimiter, async (req, res, next) => {
     const client = rows[0];
     if (!client) {
       await db.query('ROLLBACK');
-      return res.status(401).json({ error: 'QR inválido o expirado.' });
+      return res.status(401).json({ error: 'QR invÃ¡lido o expirado.' });
     }
     if (client.current_balance < quantity) {
       await db.query('ROLLBACK');
@@ -192,7 +192,7 @@ router.post('/:id/charge-combo', requireStaffSession, async (req, res, next) => 
     if (newBalance < 0) {
       await db.query('ROLLBACK');
       transactionStarted = false;
-      return res.status(400).json({ error: 'No se puede descontar más cervezas de las que el cliente tiene en saldo' });
+      return res.status(400).json({ error: 'No se puede descontar mÃ¡s cervezas de las que el cliente tiene en saldo' });
     }
 
     const rateResult = await db.query(
@@ -209,6 +209,18 @@ router.post('/:id/charge-combo', requireStaffSession, async (req, res, next) => 
        WHERE id = $2 RETURNING current_balance`,
       [newBalance, client.id]
     );
+    if (quantity > 0) {
+      await db.query(
+        `UPDATE clients SET loyalty_points = COALESCE(loyalty_points, 0) + $1,
+           loyalty_tier = CASE
+             WHEN COALESCE(loyalty_points,0) + $1 >= 200 THEN 'oro'
+             WHEN COALESCE(loyalty_points,0) + $1 >= 50 THEN 'plata'
+             ELSE 'bronce'
+           END
+         WHERE id = $2`,
+        [quantity, client.id]
+      );
+    }
     await db.query(
       `INSERT INTO transactions
        (establishment_id, client_id, staff_id, transaction_type, quantity,
@@ -285,10 +297,10 @@ router.get('/token/:token/verification-code', async (req, res, next) => {
       [hashAccessToken(token)]
     );
     const client = rows[0];
-    if (!client) return res.status(401).json({ error: 'QR inválido o expirado.' });
+    if (!client) return res.status(401).json({ error: 'QR invÃ¡lido o expirado.' });
 
-    // Solo generar código nuevo si el actual expiró o no existe
-    // Esto evita que múltiples pestañas/dispositivos se sobrescriban mutuamente
+    // Solo generar cÃ³digo nuevo si el actual expirÃ³ o no existe
+    // Esto evita que mÃºltiples pestaÃ±as/dispositivos se sobrescriban mutuamente
     const needsNew = !client.verification_code ||
       !client.verification_code_expires_at ||
       new Date(client.verification_code_expires_at) <= now;
@@ -314,7 +326,7 @@ router.post('/token/:token/verification-code/verify', async (req, res, next) => 
     const { token } = req.params;
     const { code } = req.body || {};
     if (!code || !/^\d{4}$/.test(String(code))) {
-      return res.status(400).json({ error: 'Código de verificación de 4 dígitos requerido' });
+      return res.status(400).json({ error: 'CÃ³digo de verificaciÃ³n de 4 dÃ­gitos requerido' });
     }
     const now = new Date();
     const { rows } = await query(
@@ -326,7 +338,7 @@ router.post('/token/:token/verification-code/verify', async (req, res, next) => 
          AND (token_expires_at IS NULL OR token_expires_at > NOW())`,
       [hashAccessToken(token), String(code), now]
     );
-    if (!rows[0]) return res.status(401).json({ error: 'Código de verificación inválido o expirado' });
+    if (!rows[0]) return res.status(401).json({ error: 'CÃ³digo de verificaciÃ³n invÃ¡lido o expirado' });
     res.json({ ok: true, client: rows[0] });
   } catch (e) { next(e); }
 });
@@ -351,7 +363,7 @@ router.post('/:id/token-expire', requireStaffSession, async (req, res, next) => 
   } catch (e) { next(e); }
 });
 
-// List clients with token info (staff only — access_token exposed only to authenticated staff)
+// List clients with token info (staff only â€” access_token exposed only to authenticated staff)
 router.get('/', requireStaffSession, async (req, res, next) => {
   try {
     const { establishment_id, search } = req.query;
@@ -363,7 +375,7 @@ router.get('/', requireStaffSession, async (req, res, next) => {
     // Do not expose tokens in bulk. Staff fetches a fresh token on demand via /:id/rotate-token
     // (only when they need to show/copy a client's QR).
     let sql = `SELECT id, full_name, document_id, phone, current_balance, token_expires_at, created_at,
-                      credit_limit_usd, credit_balance_usd, credit_hold_reason
+                      credit_limit_usd, credit_balance_usd, credit_hold_reason, loyalty_points, loyalty_tier
                FROM clients WHERE establishment_id = $1`;
     if (search) {
       params.push(`%${search}%`);
@@ -371,6 +383,66 @@ router.get('/', requireStaffSession, async (req, res, next) => {
     }
     sql += ' ORDER BY created_at DESC LIMIT 100';
     const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+
+// Purchase history for a client (staff only)
+router.get('/:id/history', requireStaffSession, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { date_from, date_to } = req.query;
+    const client = await query('SELECT id, establishment_id FROM clients WHERE id = $1', [id]);
+    if (!client.rows[0]) return res.status(404).json({ error: 'Client not found' });
+    if (Number(client.rows[0].establishment_id) !== Number(req.establishmentId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const params = [id];
+    let dateCond = '';
+    if (date_from && date_to) {
+      params.push(date_from, date_to);
+      dateCond = ` AND created_at::date BETWEEN $2 AND $3`;
+    } else if (date_from) {
+      params.push(date_from);
+      dateCond = ` AND created_at::date >= $2`;
+    } else if (date_to) {
+      params.push(date_to);
+      dateCond = ` AND created_at::date <= $2`;
+    }
+    const { rows } = await query(
+      `SELECT id, transaction_type, quantity, amount_usd, amount_ves, created_at, staff_id
+       FROM transactions WHERE client_id = $1${dateCond} ORDER BY created_at DESC LIMIT 200`,
+      params
+    );
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+
+// Top clients by purchase volume (staff only)
+router.get('/top/:establishmentId', requireStaffSession, async (req, res, next) => {
+  try {
+    const { establishmentId } = req.params;
+    if (Number(req.establishmentId) !== Number(establishmentId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { date_from, date_to } = req.query;
+    const params = [establishmentId];
+    let dateCond = '';
+    if (date_from && date_to) {
+      params.push(date_from, date_to);
+      dateCond = ` AND t.created_at::date BETWEEN $2 AND $3`;
+    }
+    const { rows } = await query(
+      `SELECT c.id, c.full_name, c.phone,
+              COALESCE(SUM(t.quantity),0) AS total_beers,
+              COALESCE(SUM(t.amount_usd),0) AS total_usd,
+              COUNT(*) AS sales_count
+       FROM transactions t JOIN clients c ON c.id = t.client_id
+       WHERE t.establishment_id = $1 AND t.transaction_type <> 'CREDIT_PAYMENT'${dateCond}
+       GROUP BY c.id, c.full_name, c.phone
+       ORDER BY total_beers DESC LIMIT 5`,
+      params
+    );
     res.json(rows);
   } catch (e) { next(e); }
 });

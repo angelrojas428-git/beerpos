@@ -394,4 +394,17 @@ router.get('/metrics', async (_req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Backup: export establishment data as JSON.
+router.get('/:id/backup', async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const [clients, transactions, staff] = await Promise.all([
+      query('SELECT * FROM clients WHERE establishment_id = $1', [id]),
+      query('SELECT * FROM transactions WHERE establishment_id = $1', [id]),
+      query('SELECT id, full_name, role, active, created_at FROM staff WHERE establishment_id = $1', [id]),
+    ]);
+    res.json({ establishment_id: id, exported_at: new Date().toISOString(), clients: clients.rows, transactions: transactions.rows, staff: staff.rows });
+  } catch (e) { next(e); }
+});
+
 export default router;

@@ -76,6 +76,9 @@ function app() {
     reportTypeFilter: '',
     reportClientsList: [],
     reportStaffList: [],
+    hourly: [],
+    hourlyLoading: false,
+    hourlyMetric: 'beers',
     report: null,
     reportClients: [],
     reportLoading: false,
@@ -1037,11 +1040,28 @@ function app() {
         this.report = await this.api(`/transactions/report/${this.estId}?${params}`);
         await this.loadReportClients(from, to);
         await this.loadReportFilterLists();
+        await this.loadHourly(from, to);
       } catch (e) {
         this.reportError = e.message;
       } finally {
         this.reportLoading = false;
       }
+    },
+    async loadHourly(from, to) {
+      if (!this.estId) return;
+      this.hourlyLoading = true;
+      try {
+        const params = new URLSearchParams();
+        if (from && to && from === to) {
+          params.set('date', from);
+        } else {
+          if (from) params.set('date_from', from);
+          if (to) params.set('date_to', to);
+        }
+        const res = await this.api(`/transactions/hourly/${this.estId}?${params}`);
+        this.hourly = res.buckets || [];
+      } catch (e) { console.warn('Hourly report error', e); this.hourly = []; }
+      finally { this.hourlyLoading = false; }
     },
     async loadReportClients(from, to) {
       if (!this.estId) return;
@@ -1152,6 +1172,20 @@ function app() {
     },
     money(value) {
       return Number(value || 0).toFixed(2);
+    },
+    hourlyValue(b) {
+      if (this.hourlyMetric === 'revenue') return Number(b.revenue_usd || 0);
+      if (this.hourlyMetric === 'count') return Number(b.sales_count || 0);
+      return Number(b.beers_sold || 0);
+    },
+    hourlyLabel(b) {
+      const v = this.hourlyValue(b);
+      if (this.hourlyMetric === 'revenue') return '$' + v.toFixed(2);
+      return v;
+    },
+    hourlyPct(b) {
+      const max = Math.max(1, ...this.hourly.map((x) => this.hourlyValue(x)));
+      return Math.min(100, (this.hourlyValue(b) / max) * 100);
     },
     saveTicketPrefs() {
       localStorage.setItem('beerposTicketWidth', this.ticketWidth);

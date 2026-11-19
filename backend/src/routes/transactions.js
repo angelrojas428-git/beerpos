@@ -161,6 +161,49 @@ router.get('/report/:establishmentId', requireStaffSession, async (req, res, nex
   } catch (e) { next(e); }
 });
 
+// Ventas por hora del día (0-23) para gráfico de control.
+router.get('/hourly/:establishmentId', requireStaffSession, async (req, res, next) => {
+  try {
+    const { establishmentId } = req.params;
+    const { date, date_from, date_to } = req.query;
+
+    let dateCond = `created_at::date = $2`;
+    const params = [establishmentId];
+    if (date_from && date_to) {
+      dateCond = `created_at::date BETWEEN $2 AND $3`;
+      params.push(date_from, date_to);
+    } else if (date) {
+      params.push(date);
+    } else {
+      return res.status(400).json({ error: 'date or date_from/date_to required' });
+    }
+
+    const sql = `
+      SELECT EXTRACT(HOUR FROM created_at)::int as hour,
+             COALESCE(SUM(CASE WHEN transaction_type <> 'CREDIT_PAYMENT' THEN quantity ELSE 0 END),0) as beers_sold,
+             COALESCE(SUM(CASE WHEN transaction_type <> 'CREDIT_PAYMENT' THEN amount_usd ELSE 0 END),0) as revenue_usd,
+             COALESCE(SUM(CASE WHEN transaction_type <> 'CREDIT_PAYMENT' THEN amount_ves ELSE 0 END),0) as revenue_ves,
+             COUNT(*) FILTER (WHERE transaction_type <> 'CREDIT_PAYMENT') as sales_count
+      FROM transactions
+      WHERE establishment_id = $1 AND ${dateCond}
+      GROUP BY EXTRACT(HOUR FROM created_at)
+      ORDER BY hour`;
+    const { rows } = await query(sql, params);
+    const buckets = Array.from({ length: 24 }, (_, h) => {
+      const row = rows.find(r => Number(r.hour) === h);
+      return {
+        hour: h,
+        label: String(h).padStart(2, '0') + ':00',
+        beers_sold: row ? Number(row.beers_sold) : 0,
+        revenue_usd: row ? Number(row.revenue_usd) : 0,
+        revenue_ves: row ? Number(row.revenue_ves) : 0,
+        sales_count: row ? Number(row.sales_count) : 0
+      };
+    });
+    res.json({ buckets });
+  } catch (e) { next(e); }
+});
+
 // Client activity report with filters
 router.get('/clients/:establishmentId', requireStaffSession, async (req, res, next) => {
   try {

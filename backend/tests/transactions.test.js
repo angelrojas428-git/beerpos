@@ -98,3 +98,67 @@ describe('GET /api/transactions/report/:establishmentId', () => {
     expect(query).toHaveBeenCalledWith(expect.stringContaining('beers_sold'), ['3', '2026-11-12']);
   });
 });
+
+describe('GET /api/transactions/hourly/:establishmentId', () => {
+  beforeEach(() => {
+    query.mockReset();
+    globalThis.__beerposSessions = {
+      valid: { staff: { id: 1 }, establishment_id: 1, expiresAt: Date.now() + 3600000 },
+    };
+  });
+
+  test('requires a staff session', async () => {
+    const response = await request(app)
+      .get('/api/transactions/hourly/1')
+      .query({ date: '2026-11-12' });
+
+    expect(response.status).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  test('rejects requests without a date or date range', async () => {
+    const response = await request(app)
+      .get('/api/transactions/hourly/1')
+      .set('x-session-token', 'valid');
+
+    expect(response.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  test('returns 24 hourly buckets with zeros for hours without sales', async () => {
+    query.mockResolvedValue({
+      rows: [{ hour: 13, beers_sold: '4', revenue_usd: '6.00', revenue_ves: '219.00', sales_count: '2' }],
+    });
+
+    const response = await request(app)
+      .get('/api/transactions/hourly/1')
+      .set('x-session-token', 'valid')
+      .query({ date: '2026-11-12' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.buckets).toHaveLength(24);
+    expect(response.body.buckets[13]).toEqual({
+      hour: 13,
+      label: '13:00',
+      beers_sold: 4,
+      revenue_usd: 6,
+      revenue_ves: 219,
+      sales_count: 2,
+    });
+    expect(response.body.buckets[0]).toMatchObject({ beers_sold: 0, revenue_usd: 0, sales_count: 0 });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('EXTRACT(HOUR FROM created_at)'), ['1', '2026-11-12']);
+  });
+
+  test('supports a date range', async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    const response = await request(app)
+      .get('/api/transactions/hourly/1')
+      .set('x-session-token', 'valid')
+      .query({ date_from: '2026-11-10', date_to: '2026-11-12' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.buckets).toHaveLength(24);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('BETWEEN'), ['1', '2026-11-10', '2026-11-12']);
+  });
+});

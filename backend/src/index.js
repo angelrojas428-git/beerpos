@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -27,6 +27,8 @@ import creditRouter from './routes/credit.js';
 import inventoryRouter from './routes/inventory.js';
 import cashRouter from './routes/cash.js';
 import staffRouter from './routes/staff.js';
+import auditRouter from './routes/audit.js';
+import helpRouter from './routes/help.js';
 import { startFastSaleExpiryCron, startBackupCron, startSubscriptionCron } from './lib/cron.js';
 import { setIO } from './lib/socket.js';
 import { getStaffSession, closeRedis } from './lib/session.js';
@@ -74,6 +76,8 @@ app.use('/api/credit', creditRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/cash', cashRouter);
 app.use('/api/staff', staffRouter);
+app.use('/api/audit', auditRouter);
+app.use('/api/help', helpRouter);
 
 // Serve frontend (static) for simple PWA deployment
 const __filename = fileURLToPath(import.meta.url);
@@ -220,3 +224,4 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;
+
