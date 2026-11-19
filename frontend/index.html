@@ -167,13 +167,9 @@
 
       <!-- Código de verificación para el bartender -->
       <template x-if="clientVerificationCode">
-        <section class="bg-amber-500/20 border border-amber-500/50 rounded-2xl p-6 text-center mb-4">
-          <div class="text-xs text-amber-400 font-bold tracking-widest uppercase mb-2">Código para el bartender</div>
-          <div class="flex flex-col items-center gap-2">
-            <div class="text-6xl font-black text-amber-400 font-mono" x-text="clientVerificationCode"></div>
-            <button @click="refreshVerificationCode()" class="text-xs text-amber-300 underline hover:text-white px-3 py-1 rounded bg-amber-500/30">🔄 Refrescar código</button>
-          </div>
-          <div class="text-xs text-amber-300 mt-2">Muéstrele este código al bartender antes de retirar sus cervezas</div>
+        <section class="bg-amber-500/15 border border-amber-500/40 rounded-xl p-4 text-center mb-4">
+          <div class="text-xs text-amber-400 font-bold tracking-widest uppercase mb-1">Código para el bartender</div>
+          <div class="text-4xl sm:text-5xl font-black text-amber-400 font-mono" x-text="clientVerificationCode"></div>
           <template x-if="clientVerificationExpiresAt">
             <div class="text-xs text-amber-300 mt-1">Expira en <span class="font-mono text-amber-400 font-bold" x-text="`${codeSecondsLeft} seg`"></span></div>
           </template>
@@ -209,6 +205,31 @@
           <div class="bg-amber-500/15 border border-amber-500/40 text-amber-200 rounded-xl p-3 text-sm">
             ⚠️ Te quedan pocas cervezas (<span x-text="client.current_balance"></span>). ¡Recarga tu combo en barra!
           </div>
+        </template>
+
+        <!-- Fiado / Credit info -->
+        <template x-if="client && (Number(client.credit_limit_usd || 0) > 0 || Number(client.credit_balance_usd || 0) > 0)">
+          <section class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <div class="font-semibold text-sm text-slate-300">Fiado (Crédito)</div>
+              <span class="px-2 py-0.5 rounded text-xs font-bold" :class="creditBadgeClass(client)" x-text="creditBadgeText(client)"></span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-slate-800 rounded-lg p-2">
+                <div class="text-xs text-slate-400">Límite</div>
+                <div class="font-bold text-emerald-400 text-sm">$<span x-text="Number(client.credit_limit_usd || 0).toFixed(2)"></span></div>
+              </div>
+              <div class="bg-slate-800 rounded-lg p-2">
+                <div class="text-xs text-slate-400">Deuda</div>
+                <div class="font-bold text-rose-400 text-sm">$<span x-text="Number(client.credit_balance_usd || 0).toFixed(2)"></span></div>
+              </div>
+              <div class="bg-slate-800 rounded-lg p-2">
+                <div class="text-xs text-slate-400">Disponible</div>
+                <div class="font-bold" :class="Number(client.credit_limit_usd || 0) - Number(client.credit_balance_usd || 0) < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="`$${(Number(client.credit_limit_usd || 0) - Number(client.credit_balance_usd || 0)).toFixed(2)}`"></div>
+              </div>
+            </div>
+            <div class="text-xs text-slate-500 mt-1 text-center">Tu consumo se descuenta del cupo disponible.</div>
+          </section>
         </template>
 
         <!-- Order status -->

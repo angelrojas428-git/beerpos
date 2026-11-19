@@ -1931,6 +1931,13 @@ function app() {
       if (u >= 0.8) return 'bg-amber-500 text-slate-950';
       return 'bg-emerald-700 text-white';
     },
+    creditBadgeText(c) {
+      const limit = Number(c.credit_limit_usd || 0);
+      const bal = Number(c.credit_balance_usd || 0);
+      if (limit <= 0) return 'Sin crédito';
+      if (bal >= limit) return 'Límite alcanzado';
+      return 'Activo';
+    },
     async setCreditLimit(c) {
       const current = Number(c.credit_limit_usd || 0);
       const input = prompt(`Límite de crédito (USD) para ${c.full_name}:\nActual: $${current.toFixed(2)}\n(0 = sin crédito)`, current > 0 ? String(current) : '');

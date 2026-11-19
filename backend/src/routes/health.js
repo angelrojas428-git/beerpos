@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { getIO } from '../lib/socket.js';
-import { requireStaffSession } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -22,8 +21,8 @@ router.get('/live', async (_req, res) => {
 });
 
 // Detailed health check: DB connection, memory, uptime, socket connections, sessions
-// Protected: staff session required
-router.get('/', requireStaffSession, async (req, res, next) => {
+// Public endpoint (no auth required)
+router.get('/', async (req, res, next) => {
   const start = Date.now();
   const health = {
     ok: true,

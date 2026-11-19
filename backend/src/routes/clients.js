@@ -70,6 +70,7 @@ router.get('/token/:token', async (req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT c.id, c.establishment_id, c.full_name, c.current_balance,
+              c.credit_limit_usd, c.credit_balance_usd, c.credit_hold_reason,
               e.name AS establishment_name, e.beer_price_usd, e.logo_url,
               e.theme_color, e.secondary_color
        FROM clients c
