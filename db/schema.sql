@@ -1,4 +1,4 @@
-﻿-- BeerPOS multi-tenant schema (PostgreSQL)
+-- BeerPOS multi-tenant schema (PostgreSQL)
 -- As specified in project requirements
 
 CREATE TABLE IF NOT EXISTS establishments (
