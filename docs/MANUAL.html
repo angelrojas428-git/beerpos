@@ -2,29 +2,83 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<title>Manual de Usuario — BeerPOS</title>
+<title>Manual Profesional — BeerPOS</title>
 <style>
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f172a;color:#f1f5f9;margin:0;padding:2rem;line-height:1.6}
-h1{color:#fbbf24;border-bottom:2px solid #fbbf24;padding-bottom:.5rem}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f172a;color:#f1f5f9;margin:0;padding:2rem;line-height:1.7}
+h1{color:#fbbf24;border-bottom:2px solid #fbbf24;padding-bottom:.5rem;font-size:2rem}
+h2{color:#fcd34d;margin-top:1.5rem}
+h3{color:#93c5fd}
 details{background:#1e293b;border-radius:12px;padding:1rem;margin:1rem 0;box-shadow:0 4px 12px rgba(0,0,0,.3)}
-summary{cursor:pointer;font-weight:700;color:#fbbf24;font-size:1.1rem}
-summary:hover{color:#fcd34d}
+summary{cursor:pointer;font-weight:700;color:#fbbf24;font-size:1.15rem}
+summary:hover{color:#fde68a}
 .content{margin-top:.75rem;padding-left:.5rem}
-ul{padding-left:1.25rem} li{margin:.25rem 0}
-code{background:#0f172a;padding:.1rem .3rem;border-radius:4px}
+ul,ol{padding-left:1.25rem} li{margin:.35rem 0}
+code{background:#0f172a;padding:.1rem .3rem;border-radius:4px;color:#34d399}
+table{width:100%;border-collapse:collapse;margin:.5rem 0}
+th,td{border:1px solid #334155;padding:.5rem;text-align:left}
+th{background:#0f172a}
 </style>
 </head>
 <body>
-<h1>Manual de Usuario — BeerPOS</h1>
-<details open><summary>1. Introducción</summary><div class="content"><p>BeerPOS gestiona clientes con QR, inventario, ventas, créditos, caja, reportes y panel admin.</p><ul><li>Clientes con QR</li><li>Inventario</li><li>Ventas</li><li>Créditos</li><li>Caja</li><li>Reportes</li><li>Panel admin</li></ul></div></details>
-<details><summary>2. Requisitos</summary><div class="content"><ul><li>Navegador moderno o PWA instalable.</li><li>Conexión a internet o red local.</li><li>Admin: Node.js 18+, PostgreSQL 14+, variables de entorno.</li></ul></div></details>
-<details><summary>3. Acceso</summary><div class="content"><p>Inicia sesión con credenciales de staff o PIN y selecciona establecimiento.</p></div></details>
-<details><summary>4. Clientes</summary><div class="content"><p>Registro con QR, saldo, historial, recargas, canjes, fiado y lealtad (bronce/plata/oro).</p></div></details>
-<details><summary>5. Ventas</summary><div class="content"><p>Venta rápida por QR, combo purchase, pedidos, tickets térmicos 58/80mm.</p></div></details>
-<details><summary>6. Inventario</summary><div class="content"><p>Stock, auto-decremento, alertas de stock bajo, historial.</p></div></details>
-<details><summary>7. Caja</summary><div class="content"><p>Apertura/cierre de turno, esperado vs contado, Z-report.</p></div></details>
-<details><summary>8. Reportes</summary><div class="content"><p>Ventas por hora/día, top clientes, export CSV/Excel/PDF, auditoría.</p></div></details>
-<details><summary>9. Administración</summary><div class="content"><p>Staff, configuración, plataforma (onboarding, backup JSON).</p></div></details>
-<details><summary>10. Seguridad y despliegue</summary><div class="content"><p>Rate limiting, sesiones, HTTPS, Docker, monitoreo /api/health.</p></div></details>
+<h1>Manual Profesional — BeerPOS</h1>
+<p><em>Sistema integral de gestión para bares y licorerías.</em></p>
+
+<details open><summary>1. Introducción</summary><div class="content">
+<p>BeerPOS es una plataforma web/PWA diseñada para la gestión operativa de bares y licorerías. Integra clientes con código QR, control de inventario, ventas, créditos (fiado), caja, reportes y panel administrativo en una sola solución.</p>
+<h3>Objetivos del sistema</h3>
+<ul><li>Automatizar el registro y canje de cervezas mediante QR.</li><li>Controlar inventario con decremento automático.</li><li>Garantizar trazabilidad de ventas y auditoría.</li><li>Facilitar reportes y exportación de datos.</li></ul>
+</div></details>
+
+<details><summary>2. Requisitos técnicos y operativos</summary><div class="content">
+<h3>Clientes finales</h3>
+<ul><li>Navegador moderno (Chrome, Edge, Safari, Firefox) o PWA instalable.</li><li>Conexión a internet o red local del establecimiento.</li><li>QR impreso o en pantalla.</li></ul>
+<h3>Administradores / operadores</h3>
+<ul><li>Node.js 18+ y PostgreSQL 14+ (o Docker Compose).</li><li>Variables de entorno configuradas (.env): DATABASE_URL, SESSION secret, CORS origin.</li><li>Impresora térmica 58/80mm (opcional).</li><li>HTTPS en producción.</li></ul>
+</div></details>
+
+<details><summary>3. Acceso y autenticación</summary><div class="content">
+<ol><li>Abrir la URL del sistema.</li><li>Ingresar credenciales de staff (admin, bartender, cajero) o PIN.</li><li>Seleccionar establecimiento si aplica.</li></ol>
+<p>Seguridad: rate limiting en login, bloqueo por intentos fallidos, expiración de sesiones configurable, 2FA para admin (opcional).</p>
+</div></details>
+
+<details><summary>4. Gestión de clientes</summary><div class="content">
+<ul><li>Registro: nombre, documento, teléfono → genera QR único.</li><li>Consulta de saldo de cervezas e historial de compras.</li><li>Recarga de saldo (compra) y canje (redención).</li><li>Crédito/fiado: límite configurable, lista de morosos, notificaciones.</li><li>Lealtad: puntos por compra, niveles bronce/plata/oro con descuentos.</li></ul>
+</div></details>
+
+<details><summary>5. Ventas y pedidos</summary><div class="content">
+<ul><li>Venta rápida por QR o búsqueda de cliente.</li><li>Combo purchase con pago (efectivo/transferencia).</li><li>Pedidos de clientes con estados.</li><li>Impresión de ticket térmico (58/80mm) con auto-impresión opcional.</li></ul>
+</div></details>
+
+<details><summary>6. Inventario</summary><div class="content">
+<ul><li>Registro de stock (cajas/botellas).</li><li>Auto-decremento al vender.</li><li>Alertas de stock bajo (umbral configurable).</li><li>Historial de entradas/salidas.</li></ul>
+</div></details>
+
+<details><summary>7. Caja (Z-report)</summary><div class="content">
+<ul><li>Apertura y cierre de turno.</li><li>Comparación esperado vs contado, diferencia.</li><li>Historial de cierres diarios.</li></ul>
+</div></details>
+
+<details><summary>8. Reportes y exportación</summary><div class="content">
+<ul><li>Ventas por día/hora, top clientes, desglose diario.</li><li>Filtros por fecha, bartender, tipo, cliente.</li><li>Exportación a CSV, Excel (.xlsx) y PDF.</li><li>Auditoría de acciones (usuario, acción, entidad, fecha, IP).</li></ul>
+</div></details>
+
+<details><summary>9. Administración y plataforma</summary><div class="content">
+<ul><li>Gestión de staff: roles, PIN, bloqueo por intentos.</li><li>Configuración de establecimiento: precio, tema, logo.</li><li>Plataforma (super-admin): onboarding, suscripciones, backup JSON.</li></ul>
+</div></details>
+
+<details><summary>10. PWA, offline y UX</summary><div class="content">
+<ul><li>Instalación como app (Agregar a pantalla de inicio).</li><li>Service worker cachea assets; funciona offline parcialmente.</li><li>Modo oscuro/claro, impresión térmica, teclado numérico.</li></ul>
+</div></details>
+
+<details><summary>11. Seguridad</summary><div class="content">
+<ul><li>Rate limiting en login, redeem y fast-sale.</li><li>Sesiones con expiración configurable.</li><li>Auditoría de acciones con IP.</li><li>Backup automático recomendado.</li></ul>
+</div></details>
+
+<details><summary>12. Despliegue y operaciones</summary><div class="content">
+<ul><li>Docker Compose con PostgreSQL y Redis.</li><li>HTTPS con certificado SSL.</li><li>Endpoint /api/health para monitoreo.</li><li>Backup automático (export JSON diario).</li></ul>
+</div></details>
+
+<details><summary>13. Soporte y resolución de problemas</summary><div class="content">
+<ul><li>Revisar logs del backend y /api/health.</li><li>Verificar conectividad DB.</li><li>Limpiar caché del navegador si hay problemas de carga.</li><li>Contactar administrador de plataforma para incidencias.</li></ul>
+</div></details>
 </body>
 </html>
