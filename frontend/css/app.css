@@ -110,3 +110,8 @@ img.emoji[src=""] { display: none; }
   .hourly-chart-wrap { height: 8rem; }
   input, select, button { font-size: 16px; }
 }
+@media (max-width: 640px) {
+  .flex { flex-wrap: wrap; }
+  button, .btn { max-width: 100%; }
+  .grid { grid-template-columns: 1fr !important; }
+}
