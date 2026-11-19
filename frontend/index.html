@@ -181,6 +181,29 @@
       </template>
 
       <main class="p-4 space-y-4 max-w-lg mx-auto client-main">
+        <section class="bg-slate-900 rounded-2xl p-4 border border-slate-800">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h2 class="font-semibold">Acceso con passkey</h2>
+              <p class="text-xs text-slate-400 mt-1">Usa la huella, Windows Hello, PIN del dispositivo o una llave FIDO2. Tu dato biométrico nunca se envía a BeerPOS.</p>
+            </div>
+            <button x-show="webAuthnAvailable() && !clientPasskeyLoadError" @click="registerClientPasskey()" :disabled="clientPasskeysLoading"
+              class="shrink-0 rounded-xl bg-sky-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+              x-text="clientPasskeys.length ? 'Añadir' : 'Activar'">Activar</button>
+          </div>
+          <p x-show="clientPasskeyLoadError" class="text-sm text-rose-300 mt-3">No se pudo consultar la configuración de passkeys. Actualiza la página antes de solicitar un retiro.</p>
+          <p x-show="!webAuthnAvailable()" class="text-sm text-amber-300 mt-3">Este navegador u origen no admite WebAuthn seguro. Usa un navegador compatible en HTTPS.</p>
+          <p x-show="clientPasskeys.length" class="text-xs text-emerald-300 mt-3">Los retiros desde este enlace requieren autenticación con passkey.</p>
+          <div class="mt-3 space-y-2">
+            <template x-for="passkey in clientPasskeys" :key="passkey.id">
+              <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-800 px-3 py-2">
+                <span class="text-xs text-slate-300" x-text="passkey.device_type === 'multiDevice' ? 'Passkey sincronizada' : 'Passkey de este dispositivo'"></span>
+                <button @click="removeClientPasskey(passkey)" class="text-xs text-rose-300 underline">Desvincular</button>
+              </div>
+            </template>
+          </div>
+        </section>
+
         <!-- Low balance alert -->
         <template x-if="client && client.current_balance <= 2">
           <div class="bg-amber-500/15 border border-amber-500/40 text-amber-200 rounded-xl p-3 text-sm">
@@ -283,8 +306,8 @@
                     <span x-text="darkMode ? $t('theme_dark') : $t('theme_light')">☀️ Claro</span>
                   </button>
                   <button type="button" @click="setLang(lang==='es' ? 'en' : 'es')" class="min-h-[44px] rounded-lg bg-slate-700 px-3 py-2 text-left text-sm" x-text="lang==='es' ? '🇬🇧 English' : '🇪🇸 Español'">🇬🇧 English</button>
-                  <button type="button" @click="scanFingerprint()" :disabled="fingerprintScanning" class="min-h-[44px] rounded-lg bg-purple-600 px-3 py-2 text-left text-sm">
-                    <span x-text="fingerprintScanning ? 'Escaneando…' : '👆 Huella'">👆 Huella</span>
+                  <button x-show="sessionToken" type="button" @click="scanClientPasskeyAtPos()" :disabled="passkeyScanning" class="min-h-[44px] rounded-lg bg-purple-600 px-3 py-2 text-left text-sm">
+                    <span x-text="passkeyScanning ? 'Autenticando…' : '🔐 Passkey cliente'">🔐 Passkey cliente</span>
                   </button>
                   <button type="button" @click="mobileMenuOpen=false; doLogout()" class="min-h-[44px] rounded-lg bg-rose-600 px-3 py-2 text-left text-sm font-semibold" x-text="$t('logout')">Cerrar Sesión</button>
                 </div>
@@ -313,8 +336,8 @@
               <button @click="setLang(lang==='es' ? 'en' : 'es')" class="min-h-[44px] rounded-lg bg-slate-700 px-3 py-2 text-sm" title="Cambiar idioma">
                 <span x-text="lang==='es' ? '🇬🇧 EN' : '🇪🇸 ES'"></span>
               </button>
-              <button @click="scanFingerprint()" :disabled="fingerprintScanning" class="min-h-[44px] rounded-lg bg-purple-600 px-3 py-2 text-sm" title="Escanear huella dactilar">
-                <span x-text="fingerprintScanning ? 'Escaneando…' : '👆 Huella'"></span>
+              <button x-show="sessionToken" @click="scanClientPasskeyAtPos()" :disabled="passkeyScanning" class="min-h-[44px] rounded-lg bg-purple-600 px-3 py-2 text-sm" title="Autenticar passkey del cliente">
+                <span x-text="passkeyScanning ? 'Autenticando…' : '🔐 Passkey cliente'"></span>
               </button>
               <button @click="doLogout()" class="min-h-[44px] rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold" x-text="$t('logout')">Cerrar Sesión</button>
             </div>
@@ -1110,6 +1133,7 @@
                 <button @click="showQr(c)" class="btn-icon px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-sm" title="Ver QR">📱 QR</button>
                 <button @click="rotateClientToken(c)" class="btn-icon px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold" title="Renovar QR">🔄</button>
                 <button @click="copyClientLink(c)" class="btn-icon px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-bold" title="Copiar enlace">Copiar</button>
+                <button x-show="isOwner()" @click="resetClientPasskeys(c)" class="btn-icon px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-bold" title="Desvincular las passkeys del cliente">🔐 Restablecer passkeys</button>
               </div>
             </div>
             <!-- Balance y acciones -->

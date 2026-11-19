@@ -71,7 +71,9 @@ En el servicio → **Environment** (Render las pide al crear el Blueprint si est
 | `REDIS_URL` | opcional | para sesiones persistentes (Render Key Value) |
 | `S3_BACKUP_*` | opcional | backups offsite |
 
-`DB_AUTOINIT=1`, `NODE_ENV`, `TRUST_PROXY` y `FINGERPRINT_ENCRYPTION_KEY` ya vienen en `render.yaml` (la clave de fingerprint la genera Render).
+`DB_AUTOINIT=1`, `NODE_ENV` y `TRUST_PROXY` ya vienen en `render.yaml`. La clave `FINGERPRINT_ENCRYPTION_KEY` se conserva únicamente para mantener recuperables los registros biométricos antiguos; las passkeys WebAuthn no la utilizan.
+
+La autenticación con passkeys necesita HTTPS y el origen exacto del sitio debe coincidir con `CORS_ORIGIN` (o con `RENDER_EXTERNAL_URL`). El identificador de confianza (`rpId`) se deriva del dominio de ese origen. Si se cambia el dominio publicado, los clientes deberán registrar una passkey nueva en el dominio nuevo.
 
 ---
 

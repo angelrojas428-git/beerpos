@@ -17,6 +17,7 @@ router.post('/', async (req, res, next) => {
   const { getStaffSession } = await import('../lib/session.js');
   const session = await getStaffSession(req.headers['x-session-token']);
   const clientToken = req.headers['x-client-token'];
+  const passkeyAuthorization = req.headers['x-client-passkey-auth'];
 
   if (!session && !clientToken) {
     return res.status(401).json({ error: 'Authentication required: staff session or client token' });
@@ -67,6 +68,28 @@ router.post('/', async (req, res, next) => {
     if (client.current_balance < qty) {
       await db.query('ROLLBACK');
       return res.status(409).json({ error: 'Saldo insuficiente para esta solicitud' });
+    }
+
+    const { rows: enrolledPasskeys } = await db.query(
+      `SELECT 1 FROM client_passkeys WHERE client_id = $1 AND establishment_id = $2 LIMIT 1`,
+      [client_id, establishment_id]
+    );
+    if (clientToken && enrolledPasskeys.length) {
+      if (!passkeyAuthorization) {
+        await db.query('ROLLBACK');
+        return res.status(401).json({ error: 'Passkey authentication required to request a withdrawal' });
+      }
+      const { rows: authorizations } = await db.query(
+        `DELETE FROM client_passkey_authorizations
+         WHERE token_hash = $1 AND client_id = $2 AND establishment_id = $3
+           AND scope = 'withdrawal' AND quantity = $4 AND expires_at > NOW()
+         RETURNING token_hash`,
+        [hashAccessToken(passkeyAuthorization), client_id, establishment_id, qty]
+      );
+      if (!authorizations.length) {
+        await db.query('ROLLBACK');
+        return res.status(401).json({ error: 'Passkey authorization is invalid, expired or bound to another quantity' });
+      }
     }
 
     // Block the balance (reserve it) - we subtract now but mark as pending

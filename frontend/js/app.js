@@ -64,8 +64,7 @@ function app() {
     installMenuOpen: false,
     lang: 'es',
     numericKeypad: { visible: false, target: '', value: '' },
-    fingerprints: [],
-    fingerprintScanning: false,
+    passkeyScanning: false,
     estId: 1,    est: null,   staffRole: null,   staffName: null,
     ticketWidth: '80', autoPrint: false, lastTicket: null,
     summary: null,
@@ -96,6 +95,9 @@ function app() {
     // client view
     token: null,
     client: null,
+    clientPasskeys: [],
+    clientPasskeysLoading: false,
+    clientPasskeyLoadError: false,
     clientVerificationCode: null,
     clientVerificationExpiresAt: null,
     codeSecondsLeft: 60,
@@ -377,8 +379,153 @@ function app() {
       this.client = await this.api(`/clients/token/${this.token}`);
       this.redeemQty = Math.min(1, this.client.current_balance || 1) || 1;
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.client.theme_color || '#0f172a');
+      await this.loadClientPasskeys();
       await this.loadClientOrders();
       await this.loadClientVerificationCode();
+    },
+    webAuthnAvailable() {
+      return window.isSecureContext && !!window.PublicKeyCredential && !!navigator.credentials;
+    },
+    decodeBase64Url(value) {
+      const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+      const binary = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
+      return Uint8Array.from(binary, (character) => character.charCodeAt(0)).buffer;
+    },
+    encodeBase64Url(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    },
+    decodeWebAuthnOptions(options) {
+      const decoded = { ...options, challenge: this.decodeBase64Url(options.challenge) };
+      if (options.user) decoded.user = { ...options.user, id: this.decodeBase64Url(options.user.id) };
+      for (const key of ['allowCredentials', 'excludeCredentials']) {
+        if (options[key]) {
+          decoded[key] = options[key].map((credential) => ({
+            ...credential,
+            id: this.decodeBase64Url(credential.id),
+          }));
+        }
+      }
+      return decoded;
+    },
+    serializeWebAuthnCredential(credential) {
+      const response = credential.response;
+      const serializedResponse = {
+        clientDataJSON: this.encodeBase64Url(response.clientDataJSON),
+      };
+      if (response.attestationObject) {
+        serializedResponse.attestationObject = this.encodeBase64Url(response.attestationObject);
+        if (typeof response.getTransports === 'function') {
+          serializedResponse.transports = response.getTransports();
+        }
+      } else {
+        serializedResponse.authenticatorData = this.encodeBase64Url(response.authenticatorData);
+        serializedResponse.signature = this.encodeBase64Url(response.signature);
+        if (response.userHandle) serializedResponse.userHandle = this.encodeBase64Url(response.userHandle);
+      }
+      return {
+        id: credential.id,
+        rawId: this.encodeBase64Url(credential.rawId),
+        type: credential.type,
+        authenticatorAttachment: credential.authenticatorAttachment,
+        clientExtensionResults: credential.getClientExtensionResults(),
+        response: serializedResponse,
+      };
+    },
+    async loadClientPasskeys() {
+      if (!this.token) return;
+      this.clientPasskeysLoading = true;
+      this.clientPasskeyLoadError = false;
+      try {
+        this.clientPasskeys = await this.api('/client-passkeys', {
+          headers: { 'x-client-token': this.token },
+        });
+      } catch (e) {
+        console.warn('No se pudieron cargar las passkeys:', e.message);
+        this.clientPasskeys = [];
+        this.clientPasskeyLoadError = true;
+      } finally {
+        this.clientPasskeysLoading = false;
+      }
+    },
+    async authenticateClientPasskey(purpose = 'withdrawal', quantity = null) {
+      if (!this.webAuthnAvailable()) {
+        throw new Error('Este navegador no admite passkeys seguras.');
+      }
+      const request = { purpose };
+      if (purpose === 'withdrawal') request.quantity = quantity;
+      const options = await this.api('/client-passkeys/authentication/options', {
+        method: 'POST',
+        headers: { 'x-client-token': this.token },
+        body: JSON.stringify(request),
+      });
+      const credential = await navigator.credentials.get({
+        publicKey: this.decodeWebAuthnOptions(options),
+      });
+      if (!credential) throw new Error('No se completó la autenticación con passkey.');
+      const result = await this.api('/client-passkeys/authentication/verify', {
+        method: 'POST',
+        headers: { 'x-client-token': this.token },
+        body: JSON.stringify({
+          challenge: options.challenge,
+          purpose,
+          response: this.serializeWebAuthnCredential(credential),
+        }),
+      });
+      return result.authorization;
+    },
+    async registerClientPasskey() {
+      if (!this.webAuthnAvailable()) {
+        this.showToast('error', 'Passkeys no disponibles', 'Abre este enlace en un navegador compatible y mediante HTTPS.');
+        return;
+      }
+      try {
+        this.clientPasskeyLoadError = false;
+        const headers = { 'x-client-token': this.token };
+        if (this.clientPasskeys.length) {
+          headers['x-client-passkey-auth'] = await this.authenticateClientPasskey('manage');
+        }
+        const options = await this.api('/client-passkeys/registration/options', {
+          method: 'POST',
+          headers,
+        });
+        const credential = await navigator.credentials.create({
+          publicKey: this.decodeWebAuthnOptions(options),
+        });
+        if (!credential) throw new Error('No se completó el registro de la passkey.');
+        await this.api('/client-passkeys/registration/verify', {
+          method: 'POST',
+          headers: { 'x-client-token': this.token },
+          body: JSON.stringify({
+            challenge: options.challenge,
+            response: this.serializeWebAuthnCredential(credential),
+          }),
+        });
+        await this.loadClientPasskeys();
+        if (this.clientPasskeyLoadError) throw new Error('La passkey se registró, pero no se pudo actualizar la lista.');
+        this.showToast('success', 'Passkey activada', 'Tu autenticador seguro quedó vinculado a esta cuenta.');
+      } catch (e) {
+        this.showToast('error', 'No se pudo activar la passkey', e.message || 'Inténtalo nuevamente.');
+      }
+    },
+    async removeClientPasskey(passkey) {
+      try {
+        const authorization = await this.authenticateClientPasskey('manage');
+        await this.api(`/client-passkeys/${passkey.id}`, {
+          method: 'DELETE',
+          headers: {
+            'x-client-token': this.token,
+            'x-client-passkey-auth': authorization,
+          },
+        });
+        await this.loadClientPasskeys();
+        if (this.clientPasskeyLoadError) throw new Error('La passkey se eliminó, pero no se pudo actualizar la lista.');
+        this.showToast('success', 'Passkey eliminada', 'El autenticador se desvinculó de esta cuenta.');
+      } catch (e) {
+        this.showToast('error', 'No se pudo eliminar la passkey', e.message || 'Inténtalo nuevamente.');
+      }
     },
     async loadClientOrders() {
       if (!this.client) return;
@@ -485,19 +632,27 @@ function app() {
       if (!this.client || this.client.current_balance < this.redeemQty) return;
       this.requesting = true;
       try {
+        if (this.clientPasskeyLoadError) {
+          throw new Error('No se pudo comprobar la configuración de passkeys. Actualiza la página e inténtalo de nuevo.');
+        }
+        const requestedQty = this.redeemQty;
+        const headers = { 'x-client-token': this.token };
+        if (this.clientPasskeys.length) {
+          headers['x-client-passkey-auth'] = await this.authenticateClientPasskey('withdrawal', requestedQty);
+        }
         const res = await this.api('/client-orders', {
           method: 'POST',
-          headers: { 'x-client-token': this.token },
+          headers,
           body: JSON.stringify({
             establishment_id: this.client.establishment_id,
             client_id: this.client.id,
-            quantity: this.redeemQty
+            quantity: requestedQty
           })
         });
         this.orderStatus = { ...res, status: 'SOLICITADO' };
         this.startExpiryTimer(res.expires_at);
         this.redeemQty = Math.max(1, Math.min(1, this.client.current_balance));
-        this.showToast('success', 'Pedido enviado', `Solicitaste ${this.redeemQty} cerveza(s). Saldo actual: ${this.client.current_balance}. El bartender te notificará cuando esté listo.`, true, this.client.current_balance);
+        this.showToast('success', 'Pedido enviado', `Solicitaste ${requestedQty} cerveza(s). Saldo actual: ${this.client.current_balance}. El bartender te notificará cuando esté listo.`, true, this.client.current_balance);
         this.clientAlert();
       } catch (e) { this.showToast('error', 'Error', e.message); } finally {
         this.requesting = false;
@@ -1506,116 +1661,57 @@ function app() {
       }
       this.closeNumericKeypad();
     },
-    async loadClientFingerprints(clientId) {
-      if (!clientId) return;
-      try {
-        this.fingerprints = await this.api(`/client-fingerprints/client/${clientId}`);
-      } catch (e) {
-        console.warn('Load fingerprints error', e);
-        this.fingerprints = [];
+    async scanClientPasskeyAtPos() {
+      if (!this.estId || !this.sessionToken) return null;
+      if (!this.webAuthnAvailable()) {
+        this.showToast('error', 'Passkeys no disponibles', 'Este navegador no admite WebAuthn en este origen.');
+        return null;
       }
-    },
-    async registerFingerprint(clientId, template, fingerPosition = 'right_thumb') {
-      if (!this.estId || !clientId || !template) return false;
+      this.passkeyScanning = true;
       try {
-        await this.api('/client-fingerprints/register', {
+        const options = await this.api('/client-passkeys/pos/authentication/options', {
           method: 'POST',
-          body: JSON.stringify({ client_id: clientId, template, finger_position: fingerPosition })
         });
-        await this.loadClientFingerprints(clientId);
-        this.showToast('success', 'Huella registrada', 'La huella dactilar se guardó correctamente.');
-        return true;
-      } catch (e) {
-        this.showToast('error', 'Error', e.message || 'No se pudo registrar la huella.');
-        return false;
-      }
-    },
-    async deleteFingerprint(fingerprintId, clientId) {
-      try {
-        await this.api(`/client-fingerprints/${fingerprintId}`, { method: 'DELETE' });
-        await this.loadClientFingerprints(clientId);
-        this.showToast('success', 'Huella eliminada', 'La huella dactilar se removió correctamente.');
-      } catch (e) {
-        this.showToast('error', 'Error', e.message || 'No se pudo eliminar la huella.');
-      }
-    },
-    async scanFingerprint() {
-      if (!this.estId) return null;
-      this.fingerprintScanning = true;
-      try {
-        // Attempt Web USB fingerprint reader
-        let template = null;
-        if (navigator.usb) {
-          try {
-            const devices = await navigator.usb.getDevices();
-            if (devices.length > 0) {
-              const device = devices[0];
-              await device.open();
-              await device.selectConfiguration(1);
-              await device.claimInterface(0);
-              // NOTE: Real fingerprint reader protocol depends on hardware model.
-              // This is a placeholder for the actual USB transfer to read a template.
-              const result = await device.transferIn(0x81, 512);
-              if (result.data && result.data.byteLength > 0) {
-                template = Array.from(new Uint8Array(result.data))
-                  .map(b => b.toString(16).padStart(2, '0'))
-                  .join('');
-              }
-              await device.close();
-            }
-          } catch (usbErr) {
-            console.warn('USB fingerprint reader not available', usbErr);
-          }
-        }
-
-        if (!template) {
-          // Fallback: prompt for manual template input (for testing without hardware)
-          template = prompt('Ingrese la plantilla de huella (para prueba sin hardware):');
-          if (!template) return null;
-        }
-
-        const res = await this.api('/client-fingerprints/verify', {
+        const credential = await navigator.credentials.get({
+          publicKey: this.decodeWebAuthnOptions(options),
+        });
+        if (!credential) throw new Error('No se completó la autenticación con passkey.');
+        const result = await this.api('/client-passkeys/pos/authentication/verify', {
           method: 'POST',
-          body: JSON.stringify({ template, establishment_id: this.estId })
+          body: JSON.stringify({
+            challenge: options.challenge,
+            response: this.serializeWebAuthnCredential(credential),
+          }),
         });
-        if (res && res.matched && res.client) {
-          this.showToast('success', 'Huella reconocida', `Bienvenido/a, ${res.client.full_name}. Saldo: ${res.client.current_balance}`);
-          // Auto-create a withdrawal order for 1 beer if balance allows
-          if (res.client.current_balance >= 1) {
-            try {
-              await this.api('/client-orders', {
-                method: 'POST',
-                body: JSON.stringify({
-                  establishment_id: this.estId,
-                  client_id: res.client.id,
-                  quantity: 1
-                })
-              });
-              this.showToast('info', 'Pedido creado', `Se solicitó 1 cerveza para ${res.client.full_name}.`);
-            } catch (e) {
-              console.warn('Auto-create order error', e);
-            }
-          }
+        const client = result.client;
+        if (Number(client.current_balance) < 1) {
+          this.showToast('info', 'Cliente reconocido', `${client.full_name} no tiene saldo disponible.`);
+          return result;
         }
-        return res;
+        await this.api('/client-orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            establishment_id: this.estId,
+            client_id: client.id,
+            quantity: 1,
+          }),
+        });
+        this.showToast('success', 'Pedido creado', `Se solicitó 1 cerveza para ${client.full_name}.`);
+        return result;
       } catch (e) {
-        if (e.status === 404) {
-          this.showToast('error', 'Huella no reconocida', 'La huella dactilar no está registrada en el sistema.');
-        } else {
-          this.showToast('error', 'Error', e.message || 'No se pudo verificar la huella.');
-        }
+        this.showToast('error', 'Error de passkey', e.message || 'No se pudo autenticar al cliente.');
         return null;
       } finally {
-        this.fingerprintScanning = false;
+        this.passkeyScanning = false;
       }
     },
-    async registerFingerprintPrompt(client) {
-      const template = prompt(`Registrar huella para ${client.full_name}\nIngrese la plantilla de huella (para prueba sin hardware):`);
-      if (!template) return;
-      const fingerPosition = prompt('Posición del dedo (ej: right_thumb, left_index):', 'right_thumb') || 'right_thumb';
-      const ok = await this.registerFingerprint(client.id, template, fingerPosition);
-      if (ok && client.id) {
-        await this.loadClientFingerprints(client.id);
+    async resetClientPasskeys(client) {
+      if (!this.isOwner() || !confirm(`¿Desvincular todas las passkeys de ${client.full_name}? El cliente deberá registrar un autenticador nuevo.`)) return;
+      try {
+        const result = await this.api(`/client-passkeys/pos/clients/${client.id}`, { method: 'DELETE' });
+        this.showToast('success', 'Passkeys desvinculadas', `Se eliminaron ${result.deleted} autenticador(es).`);
+      } catch (e) {
+        this.showToast('error', 'Error', e.message || 'No se pudieron desvincular las passkeys.');
       }
     },
     async loadFastPending() {

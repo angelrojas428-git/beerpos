@@ -23,12 +23,6 @@ if (isProd) {
   if (!corsRaw || corsRaw === '*') {
     problems.push('CORS_ORIGIN debe fijarse a uno o más orígenes reales (no "*") en producción.');
   }
-  // fingerprint.js hashes any non-hex/non-64 value to 32 bytes, so any strong secret
-  // (>=16 chars) is valid; only reject empty/trivial values.
-  const fpKey = process.env.FINGERPRINT_ENCRYPTION_KEY;
-  if (!fpKey || fpKey.length < 16) {
-    problems.push('FINGERPRINT_ENCRYPTION_KEY debe configurarse (mínimo 16 caracteres) en producción.');
-  }
   if (problems.length) {
     console.error('FATAL: configuración de producción inválida:\n - ' + problems.join('\n - '));
     process.exit(1);

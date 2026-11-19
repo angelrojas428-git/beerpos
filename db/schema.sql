@@ -133,7 +133,7 @@ ALTER TABLE client_orders ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
 CREATE INDEX IF NOT EXISTS idx_client_orders_status ON client_orders(establishment_id, status, requested_at);
 CREATE INDEX IF NOT EXISTS idx_client_orders_client ON client_orders(client_id, status);
 
--- Client fingerprint templates (biometric authentication)
+-- Legacy encrypted fingerprint templates, retained but no longer used for authentication.
 CREATE TABLE IF NOT EXISTS client_fingerprints (
     id SERIAL PRIMARY KEY,
     client_id INT REFERENCES clients(id) ON DELETE CASCADE,
@@ -147,6 +147,55 @@ CREATE TABLE IF NOT EXISTS client_fingerprints (
 
 CREATE INDEX IF NOT EXISTS idx_client_fingerprints_client ON client_fingerprints(client_id);
 CREATE INDEX IF NOT EXISTS idx_client_fingerprints_est ON client_fingerprints(establishment_id);
+
+-- Public-key credentials replace the former client-side fingerprint templates.
+CREATE TABLE IF NOT EXISTS client_passkeys (
+    id SERIAL PRIMARY KEY,
+    credential_id TEXT NOT NULL UNIQUE,
+    client_id INT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    establishment_id INT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+    public_key BYTEA NOT NULL,
+    sign_count BIGINT NOT NULL DEFAULT 0,
+    transports JSONB NOT NULL DEFAULT '[]'::jsonb,
+    device_type VARCHAR(20) NOT NULL DEFAULT 'singleDevice',
+    backed_up BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_used_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_passkeys_client
+    ON client_passkeys(client_id, establishment_id);
+
+CREATE TABLE IF NOT EXISTS webauthn_challenges (
+    challenge TEXT PRIMARY KEY,
+    purpose VARCHAR(40) NOT NULL,
+    client_id INT REFERENCES clients(id) ON DELETE CASCADE,
+    establishment_id INT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+    requested_quantity INT CHECK (requested_quantity IS NULL OR requested_quantity > 0),
+    expected_origin TEXT NOT NULL,
+    rp_id TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_webauthn_challenges_expiry ON webauthn_challenges(expires_at);
+
+CREATE TABLE IF NOT EXISTS client_passkey_authorizations (
+    token_hash CHAR(64) PRIMARY KEY,
+    client_id INT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    establishment_id INT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+    scope VARCHAR(24) NOT NULL CHECK (scope IN ('withdrawal', 'manage')),
+    quantity INT CHECK (quantity IS NULL OR quantity > 0),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (
+        (scope = 'withdrawal' AND quantity IS NOT NULL) OR
+        (scope = 'manage' AND quantity IS NULL)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_passkey_authorizations_expiry
+    ON client_passkey_authorizations(expires_at);
 
 -- Audit log: registra acciones críticas para trazabilidad y seguridad
 CREATE TABLE IF NOT EXISTS audit_log (
