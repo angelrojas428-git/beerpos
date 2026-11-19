@@ -5,23 +5,26 @@
 <title>Manual de Usuario — BeerPOS</title>
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f172a;color:#f1f5f9;margin:0;padding:2rem;line-height:1.6}
-h1,h2,h3{color:#fbbf24} h1{border-bottom:2px solid #fbbf24;padding-bottom:.5rem}
-section{background:#1e293b;border-radius:12px;padding:1.5rem;margin:1rem 0;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+h1{color:#fbbf24;border-bottom:2px solid #fbbf24;padding-bottom:.5rem}
+details{background:#1e293b;border-radius:12px;padding:1rem;margin:1rem 0;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+summary{cursor:pointer;font-weight:700;color:#fbbf24;font-size:1.1rem}
+summary:hover{color:#fcd34d}
+.content{margin-top:.75rem;padding-left:.5rem}
 ul{padding-left:1.25rem} li{margin:.25rem 0}
 code{background:#0f172a;padding:.1rem .3rem;border-radius:4px}
 </style>
 </head>
 <body>
 <h1>Manual de Usuario — BeerPOS</h1>
-<section><h2>1. Introducción</h2><p>BeerPOS gestiona clientes con QR, inventario, ventas, créditos, caja, reportes y panel admin.</p></section>
-<section><h2>2. Requisitos</h2><ul><li>Navegador moderno o PWA instalable.</li><li>Conexión a internet o red local.</li><li>Admin: Node.js 18+, PostgreSQL 14+, variables de entorno.</li></ul></section>
-<section><h2>3. Acceso</h2><p>Inicia sesión con credenciales de staff o PIN y selecciona establecimiento.</p></section>
-<section><h2>4. Clientes</h2><p>Registro con QR, saldo, historial, recargas, canjes, fiado y lealtad (bronce/plata/oro).</p></section>
-<section><h2>5. Ventas</h2><p>Venta rápida por QR, combo purchase, pedidos, tickets térmicos 58/80mm.</p></section>
-<section><h2>6. Inventario</h2><p>Stock, auto-decremento, alertas de stock bajo, historial.</p></section>
-<section><h2>7. Caja</h2><p>Apertura/cierre de turno, esperado vs contado, Z-report.</p></section>
-<section><h2>8. Reportes</h2><p>Ventas por hora/día, top clientes, export CSV/Excel/PDF, auditoría.</p></section>
-<section><h2>9. Administración</h2><p>Staff, configuración, plataforma (onboarding, backup JSON).</p></section>
-<section><h2>10. Seguridad y despliegue</h2><p>Rate limiting, sesiones, HTTPS, Docker, monitoreo /api/health.</p></section>
+<details open><summary>1. Introducción</summary><div class="content"><p>BeerPOS gestiona clientes con QR, inventario, ventas, créditos, caja, reportes y panel admin.</p><ul><li>Clientes con QR</li><li>Inventario</li><li>Ventas</li><li>Créditos</li><li>Caja</li><li>Reportes</li><li>Panel admin</li></ul></div></details>
+<details><summary>2. Requisitos</summary><div class="content"><ul><li>Navegador moderno o PWA instalable.</li><li>Conexión a internet o red local.</li><li>Admin: Node.js 18+, PostgreSQL 14+, variables de entorno.</li></ul></div></details>
+<details><summary>3. Acceso</summary><div class="content"><p>Inicia sesión con credenciales de staff o PIN y selecciona establecimiento.</p></div></details>
+<details><summary>4. Clientes</summary><div class="content"><p>Registro con QR, saldo, historial, recargas, canjes, fiado y lealtad (bronce/plata/oro).</p></div></details>
+<details><summary>5. Ventas</summary><div class="content"><p>Venta rápida por QR, combo purchase, pedidos, tickets térmicos 58/80mm.</p></div></details>
+<details><summary>6. Inventario</summary><div class="content"><p>Stock, auto-decremento, alertas de stock bajo, historial.</p></div></details>
+<details><summary>7. Caja</summary><div class="content"><p>Apertura/cierre de turno, esperado vs contado, Z-report.</p></div></details>
+<details><summary>8. Reportes</summary><div class="content"><p>Ventas por hora/día, top clientes, export CSV/Excel/PDF, auditoría.</p></div></details>
+<details><summary>9. Administración</summary><div class="content"><p>Staff, configuración, plataforma (onboarding, backup JSON).</p></div></details>
+<details><summary>10. Seguridad y despliegue</summary><div class="content"><p>Rate limiting, sesiones, HTTPS, Docker, monitoreo /api/health.</p></div></details>
 </body>
 </html>
