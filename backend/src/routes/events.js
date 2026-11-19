@@ -10,10 +10,10 @@ const router = Router();
 // Auth: staff session (x-session-token header) OR client token (query ?token=)
 router.get('/:establishmentId', async (req, res, next) => {
   const { establishmentId } = req.params;
-  const { token } = req.query;
+  const { token, session } = req.query;
 
   // Verify auth: staff session OR client token
-  const sessionToken = req.headers['x-session-token'];
+  const sessionToken = req.headers['x-session-token'] || session;
   let authorized = false;
   let clientId = null;
 

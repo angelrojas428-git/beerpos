@@ -557,7 +557,7 @@ function app() {
     async connectBartenderSse() {
       this.sseEstablishmentId = this.estId;
       if (!window.EventSource) return;
-      this.sse = new EventSource(`/api/events/${this.estId}`);
+      this.sse = new EventSource(`/api/events/${this.estId}?session=${encodeURIComponent(this.sessionToken)}`);
       this.sse.addEventListener('hello', (e) => console.log('SSE hello', e.data));
       this.sse.addEventListener('client_balance', (e) => {
         const data = JSON.parse(e.data);
