@@ -447,4 +447,20 @@ router.get('/top/:establishmentId', requireStaffSession, async (req, res, next) 
   } catch (e) { next(e); }
 });
 
+// Redeem loyalty points for free beers (staff only)
+router.post('/:id/redeem-points', requireStaffSession, async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const points = Number(req.body?.points || 0);
+    if (!Number.isInteger(points) || points <= 0) return res.status(400).json({ error: 'points must be positive integer' });
+    const c = await query('SELECT id, establishment_id, loyalty_points, current_balance FROM clients WHERE id = $1', [id]);
+    if (!c.rows[0]) return res.status(404).json({ error: 'Client not found' });
+    if (Number(c.rows[0].establishment_id) !== Number(req.establishmentId)) return res.status(403).json({ error: 'Forbidden' });
+    if (Number(c.rows[0].loyalty_points) < points) return res.status(409).json({ error: 'Insufficient points' });
+    const beers = Math.floor(points / 10); // 10 points = 1 beer
+    await query('UPDATE clients SET loyalty_points = loyalty_points - $1, current_balance = COALESCE(current_balance,0) + $2 WHERE id = $3', [points, beers, id]);
+    res.json({ redeemed_points: points, beers_credited: beers });
+  } catch (e) { next(e); }
+});
+
 export default router;
