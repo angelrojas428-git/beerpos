@@ -14,6 +14,7 @@ export const pool = new Pool({
   max: Number(process.env.DB_POOL_MAX) || 10,
   idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_MS) || 30000,
   connectionTimeoutMillis: Number(process.env.DB_POOL_CONN_MS) || 5000,
+  options: " -c client_encoding=UTF8\,
 });
 
 // Prevent an idle-client error from becoming an unhandled 'error' event (crashes the process).
