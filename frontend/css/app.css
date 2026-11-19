@@ -106,12 +106,20 @@ img.emoji {
    and let the browser fall back to native emoji rendering */
 img.emoji[src=""] { display: none; }
 @media (max-width: 640px) {
-  .reports-filters { flex-direction: column; }
+  .reports-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+  }
+  .reports-filters .filter-group input,
+  .reports-filters .filter-group select { width: 100%; }
+  .reports-filters .filter-actions { grid-column: 1 / -1; margin-left: 0; }
   .hourly-chart-wrap { height: 8rem; }
-  input, select, button { font-size: 16px; }
+  .table-wrap table { min-width: 36rem; }
 }
-@media (max-width: 640px) {
+@media (max-width: 1023px) {
   .flex { flex-wrap: wrap; }
-  button, .btn { max-width: 100%; }
-  .grid { grid-template-columns: 1fr !important; }
+  input, select, button { font-size: 16px; }
+  button, .btn { max-width: 100%; min-height: 2.75rem; }
+  .table-wrap { overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 }

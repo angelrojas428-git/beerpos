@@ -248,51 +248,85 @@
   <!-- BARTENDER / ADMIN VIEW -->
   <template x-if="!loading && view === 'bartender'">
     <div class="min-h-screen pb-8">
-      <header class="p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
-        <div class="flex flex-wrap gap-3 items-center justify-between">
-          <div class="flex items-center gap-3">
-            <img x-show="est?.logo_url" :src="est?.logo_url" :alt="est?.name" class="h-12 w-12 rounded-xl object-cover border border-white/10" />
-            <div>
-            <h1 class="text-xl font-bold">🍺 BeerPOS — Barra</h1>
-            <div class="text-xs text-slate-400">Establecimiento #<span x-text="estId"></span> · <span x-text="est?.name"></span></div>
+      <header class="sticky top-0 z-30 border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+              <img x-show="est?.logo_url" :src="est?.logo_url" :alt="est?.name" class="h-10 w-10 shrink-0 rounded-xl border border-white/10 object-cover sm:h-12 sm:w-12" />
+              <div class="min-w-0">
+                <h1 class="truncate text-base font-bold sm:text-xl">🍺 BeerPOS — Barra</h1>
+                <div class="truncate text-xs text-slate-400">Establecimiento #<span x-text="estId"></span> · <span x-text="est?.name"></span></div>
+                <div class="truncate text-xs text-slate-500 lg:hidden" x-text="tab === 'fast' ? $t('fast_sale') : tab === 'clients' ? $t('clients') : tab === 'credit' ? 'Cuentas por Cobrar' : tab === 'reports' ? $t('reports') : tab === 'caja' ? 'Caja' : $t('settings')"></div>
+              </div>
+            </div>
+            <div class="relative lg:hidden" @click.outside="mobileMenuOpen = false" @keydown.escape.window="mobileMenuOpen = false">
+              <button type="button" @click="mobileMenuOpen = !mobileMenuOpen" :aria-expanded="mobileMenuOpen" aria-controls="mobile-app-menu" :aria-label="mobileMenuOpen ? 'Cerrar menú de navegación y herramientas' : 'Abrir menú de navegación y herramientas'" class="flex min-h-[44px] items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white">
+                <span aria-hidden="true">☰</span>
+                <span x-text="mobileMenuOpen ? 'Cerrar' : 'Menú'"></span>
+              </button>
+              <div id="mobile-app-menu" x-show="mobileMenuOpen" x-transition class="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-slate-700 bg-slate-900 p-3 shadow-2xl">
+                <nav aria-label="Secciones" class="grid grid-cols-2 gap-2">
+                  <button type="button" @click="tab='fast'; mobileMenuOpen=false" :class="tab==='fast' ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-100'" class="min-h-[44px] rounded-lg px-3 py-2 text-left text-sm font-semibold" x-text="$t('fast_sale')">Venta Rápida</button>
+                  <button type="button" @click="tab='clients'; mobileMenuOpen=false" :class="tab==='clients' ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-100'" class="min-h-[44px] rounded-lg px-3 py-2 text-left text-sm font-semibold" x-text="$t('clients')">Clientes</button>
+                  <button type="button" @click="tab='credit'; loadCredit(); mobileMenuOpen=false" :class="tab==='credit' ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-100'" class="min-h-[44px] rounded-lg px-3 py-2 text-left text-sm font-semibold">Cuentas por Cobrar</button>
+                  <button type="button" @click="tab='reports'; loadReport(); mobileMenuOpen=false" :class="tab==='reports' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-100'" class="min-h-[44px] rounded-lg px-3 py-2 text-left text-sm font-semibold" x-text="$t('reports')">Reportes</button>
+                  <button type="button" @click="tab='caja'; loadCash(); loadCashHistory(); mobileMenuOpen=false" :class="tab==='caja' ? 'bg-teal-500 text-slate-950' : 'bg-slate-800 text-slate-100'" class="min-h-[44px] rounded-lg px-3 py-2 text-left text-sm font-semibold">Caja</button>
+                  <button type="button" @click="tab='settings'; loadStaff(); mobileMenuOpen=false" :class="tab==='settings' ? 'bg-slate-600 text-white' : 'bg-slate-800 text-slate-100'" class="min-h-[44px] rounded-lg px-3 py-2 text-left text-sm font-semibold" x-text="$t('settings')">Ajustes</button>
+                </nav>
+                <div class="my-3 border-t border-slate-700"></div>
+                <div class="grid grid-cols-2 gap-2">
+                  <button x-show="sessionToken" type="button" @click="openDisplay(); mobileMenuOpen=false" class="min-h-[44px] rounded-lg bg-sky-700 px-3 py-2 text-left text-sm font-semibold">Pantalla secundaria</button>
+                  <button type="button" @click="enableSound()" class="min-h-[44px] rounded-lg bg-slate-700 px-3 py-2 text-left text-sm">
+                    <span x-text="audioEnabled ? $t('sound_on') : $t('sound_off')">🔊 Sonido</span>
+                  </button>
+                  <button type="button" @click="toggleDarkMode()" :class="darkMode ? 'bg-slate-600 text-white' : 'bg-slate-700 text-slate-300'" class="min-h-[44px] rounded-lg px-3 py-2 text-left text-sm">
+                    <span x-text="darkMode ? $t('theme_dark') : $t('theme_light')">☀️ Claro</span>
+                  </button>
+                  <button type="button" @click="setLang(lang==='es' ? 'en' : 'es')" class="min-h-[44px] rounded-lg bg-slate-700 px-3 py-2 text-left text-sm" x-text="lang==='es' ? '🇬🇧 English' : '🇪🇸 Español'">🇬🇧 English</button>
+                  <button type="button" @click="scanFingerprint()" :disabled="fingerprintScanning" class="min-h-[44px] rounded-lg bg-purple-600 px-3 py-2 text-left text-sm">
+                    <span x-text="fingerprintScanning ? 'Escaneando…' : '👆 Huella'">👆 Huella</span>
+                  </button>
+                  <button type="button" @click="mobileMenuOpen=false; doLogout()" class="min-h-[44px] rounded-lg bg-rose-600 px-3 py-2 text-left text-sm font-semibold" x-text="$t('logout')">Cerrar Sesión</button>
+                </div>
+              </div>
+            </div>
+            <div class="grid w-full grid-cols-3 gap-1 text-[10px] sm:flex sm:w-auto sm:gap-2 sm:text-sm">
+              <div class="min-w-0 rounded-lg bg-slate-800 px-2 py-1.5 sm:px-3 sm:py-2">Vendidas: <b x-text="summary?.today?.beers_sold || 0"></b></div>
+              <div class="min-w-0 rounded-lg bg-slate-800 px-2 py-1.5 sm:px-3 sm:py-2">Despachadas: <b x-text="summary?.today?.beers_redeemed || 0"></b></div>
+              <div x-show="stock.beer_stock !== null && stock.beer_stock !== undefined" class="min-w-0 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2" :class="stock.low_stock ? 'bg-rose-900/50 text-rose-200' : 'bg-slate-800'">
+                Stock: <b x-text="stock.beer_stock"></b>
+              </div>
+            </div>
+            <div x-show="!online || pendingSyncCount > 0" class="w-full rounded-lg border px-3 py-2 text-sm"
+              :class="syncError ? 'border-rose-500/50 bg-rose-900/30 text-rose-200' : 'border-amber-500/40 bg-amber-500/10 text-amber-100'">
+              <span x-text="syncError || (!online ? 'Sin conexión. Las ventas rápidas se guardarán para sincronizar.' : `${pendingSyncCount} venta(s) rápida(s) pendiente(s) de sincronizar.`)"></span>
+              <button x-show="syncError" @click="retryPendingSync()" class="ml-2 underline font-semibold">Reintentar</button>
+            </div>
+            <div class="hidden flex-wrap justify-end gap-2 lg:flex">
+              <button x-show="sessionToken" @click="openDisplay()" class="min-h-[44px] rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold">Pantalla secundaria</button>
+              <button @click="enableSound()" class="min-h-[44px] rounded-lg bg-slate-700 px-3 py-2 text-sm">
+                <span x-text="audioEnabled ? $t('sound_on') : $t('sound_off')">🔊 Sonido activado</span>
+              </button>
+              <button @click="toggleDarkMode()" :class="darkMode ? 'bg-slate-600 text-white' : 'bg-slate-700 text-slate-300'" class="min-h-[44px] rounded-lg px-3 py-2 text-sm" title="Cambiar tema">
+                <span x-text="darkMode ? $t('theme_dark') : $t('theme_light')">☀️ Claro</span>
+              </button>
+              <button @click="setLang(lang==='es' ? 'en' : 'es')" class="min-h-[44px] rounded-lg bg-slate-700 px-3 py-2 text-sm" title="Cambiar idioma">
+                <span x-text="lang==='es' ? '🇬🇧 EN' : '🇪🇸 ES'"></span>
+              </button>
+              <button @click="scanFingerprint()" :disabled="fingerprintScanning" class="min-h-[44px] rounded-lg bg-purple-600 px-3 py-2 text-sm" title="Escanear huella dactilar">
+                <span x-text="fingerprintScanning ? 'Escaneando…' : '👆 Huella'"></span>
+              </button>
+              <button @click="doLogout()" class="min-h-[44px] rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold" x-text="$t('logout')">Cerrar Sesión</button>
             </div>
           </div>
-          <div class="flex gap-2 text-sm">
-            <div class="bg-slate-800 rounded-lg px-3 py-2">Vendidas hoy: <b x-text="summary?.today?.beers_sold || 0"></b></div>
-            <div class="bg-slate-800 rounded-lg px-3 py-2">Despachadas: <b x-text="summary?.today?.beers_redeemed || 0"></b></div>
-            <div x-show="stock.beer_stock !== null && stock.beer_stock !== undefined" class="rounded-lg px-3 py-2" :class="stock.low_stock ? 'bg-rose-900/50 text-rose-200' : 'bg-slate-800'">
-              Stock: <b x-text="stock.beer_stock"></b>
-            </div>
-          </div>
-          <div x-show="!online || pendingSyncCount > 0" class="mt-3 rounded-lg border px-3 py-2 text-sm"
-            :class="syncError ? 'border-rose-500/50 bg-rose-900/30 text-rose-200' : 'border-amber-500/40 bg-amber-500/10 text-amber-100'">
-            <span x-text="syncError || (!online ? 'Sin conexión. Las ventas rápidas se guardarán para sincronizar.' : `${pendingSyncCount} venta(s) rápida(s) pendiente(s) de sincronizar.`)"></span>
-            <button x-show="syncError" @click="retryPendingSync()" class="ml-2 underline font-semibold">Reintentar</button>
-          </div>
-          <div class="flex gap-2">
-            <button x-show="sessionToken" @click="openDisplay()" class="px-3 py-2 rounded-lg bg-sky-600 text-sm font-semibold">Pantalla secundaria</button>
-            <button @click="enableSound()" class="px-3 py-2 rounded-lg bg-slate-700 text-sm">
-              <span x-text="audioEnabled ? $t('sound_on') : $t('sound_off')">🔊 Sonido activado</span>
-            </button>
-            <button @click="toggleDarkMode()" :class="darkMode ? 'bg-slate-600 text-white' : 'bg-slate-700 text-slate-300'" class="px-3 py-2 rounded-lg text-sm" title="Cambiar tema">
-              <span x-text="darkMode ? $t('theme_dark') : $t('theme_light')">☀️ Claro</span>
-            </button>
-            <button @click="setLang(lang==='es' ? 'en' : 'es')" class="px-3 py-2 rounded-lg bg-slate-700 text-sm" title="Cambiar idioma">
-              <span x-text="lang==='es' ? '🇬🇧 EN' : '🇪🇸 ES'"></span>
-            </button>
-            <button @click="scanFingerprint()" :disabled="fingerprintScanning" class="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-sm" title="Escanear huella dactilar">
-              <span x-text="fingerprintScanning ? 'Escaneando…' : '👆 Huella'"></span>
-            </button>
-            <button @click="doLogout()" class="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-semibold" x-text="$t('logout')">Cerrar Sesión</button>
-          </div>
-        </div>
-          <div class="flex gap-2 mt-3">
-            <button @click="tab='fast'" :class="tab==='fast'?'bg-amber-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('fast_sale')">⚡ Venta Rápida</button>
-            <button @click="tab='clients'" :class="tab==='clients'?'bg-sky-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('clients')">Clientes</button>
-            <button @click="tab='credit'; loadCredit()" :class="tab==='credit'?'bg-amber-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold">Cuentas por Cobrar</button>
-            <button @click="tab='reports'; loadReport()" :class="tab==='reports'?'bg-emerald-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('reports')">Reportes</button>
-            <button @click="tab='caja'; loadCash(); loadCashHistory()" :class="tab==='caja'?'bg-teal-500 text-slate-950':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold">Caja</button>
-            <button @click="tab='settings'; loadStaff()" :class="tab==='settings'?'bg-slate-600':'bg-slate-800'" class="px-4 py-2 rounded-lg font-semibold" x-text="$t('settings')">Ajustes</button>
+          <nav aria-label="Secciones" class="hidden flex-wrap gap-2 lg:flex">
+            <button @click="tab='fast'" :class="tab==='fast'?'bg-amber-500 text-slate-950':'bg-slate-800'" class="min-h-[44px] rounded-lg px-4 py-2 font-semibold" x-text="$t('fast_sale')">⚡ Venta Rápida</button>
+            <button @click="tab='clients'" :class="tab==='clients'?'bg-sky-500 text-slate-950':'bg-slate-800'" class="min-h-[44px] rounded-lg px-4 py-2 font-semibold" x-text="$t('clients')">Clientes</button>
+            <button @click="tab='credit'; loadCredit()" :class="tab==='credit'?'bg-amber-500 text-slate-950':'bg-slate-800'" class="min-h-[44px] rounded-lg px-4 py-2 font-semibold">Cuentas por Cobrar</button>
+            <button @click="tab='reports'; loadReport()" :class="tab==='reports'?'bg-emerald-500 text-slate-950':'bg-slate-800'" class="min-h-[44px] rounded-lg px-4 py-2 font-semibold" x-text="$t('reports')">Reportes</button>
+            <button @click="tab='caja'; loadCash(); loadCashHistory()" :class="tab==='caja'?'bg-teal-500 text-slate-950':'bg-slate-800'" class="min-h-[44px] rounded-lg px-4 py-2 font-semibold">Caja</button>
+            <button @click="tab='settings'; loadStaff()" :class="tab==='settings'?'bg-slate-600':'bg-slate-800'" class="min-h-[44px] rounded-lg px-4 py-2 font-semibold" x-text="$t('settings')">Ajustes</button>
+          </nav>
         </div>
       </header>
 
@@ -555,9 +589,9 @@
 
         <!-- CLIENTS TAB -->
         <section x-show="tab==='clients'" class="space-y-4">
-          <div class="grid md:grid-cols-3 gap-4 lg:grid-cols-[2fr_2fr_1fr]">
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_2fr_1fr]">
             <!-- Left column: Pedidos de retiro -->
-            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 md:min-h-[650px] lg:p-6 lg:min-w-[420px] min-w-0 overflow-hidden">
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 lg:min-h-[650px] lg:p-6 lg:min-w-[420px] min-w-0 overflow-hidden">
               <div class="flex justify-between items-center mb-4">
                 <h2 class="font-bold text-base mb-0">Pedidos de retiro</h2>
                 <span class="text-xs font-bold px-2 py-1 rounded-full bg-amber-500/20 text-amber-400" x-text="pendingOrdersCount"></span>
@@ -620,7 +654,7 @@
             </div>
 
             <!-- Right column: Cargar combo / saldo (card that opens modal) -->
-            <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 md:min-h-[700px] lg:p-8 flex flex-col items-center justify-center h-full min-w-0 overflow-hidden">
+            <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 lg:min-h-[700px] lg:p-8 flex flex-col items-center justify-center h-full min-w-0 overflow-hidden">
               <div class="text-center">
                 <div class="text-4xl mb-3">🍺</div>
                 <h2 class="font-bold text-base mb-2">Cargar combo / saldo</h2>
@@ -682,7 +716,7 @@
                     </div>
                   </div>
                   <template x-if="creditAgingFor(c.id)">
-                    <div class="grid grid-cols-4 gap-2 mt-3 text-center text-xs">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-center text-xs">
                       <div class="bg-slate-900/60 rounded-lg p-1.5"><div class="text-slate-500">Corriente</div><div class="font-bold text-slate-200">$<span x-text="Number(creditAgingFor(c.id).corriente||0).toFixed(2)"></span></div></div>
                       <div class="bg-slate-900/60 rounded-lg p-1.5"><div class="text-slate-500">31-60d</div><div class="font-bold text-amber-300">$<span x-text="Number(creditAgingFor(c.id).d31_60||0).toFixed(2)"></span></div></div>
                       <div class="bg-slate-900/60 rounded-lg p-1.5"><div class="text-slate-500">61-90d</div><div class="font-bold text-orange-400">$<span x-text="Number(creditAgingFor(c.id).d61_90||0).toFixed(2)"></span></div></div>
@@ -966,31 +1000,33 @@
             <div class="font-semibold text-slate-100" x-text="creditStatement.client?.full_name"></div>
             <div class="text-slate-400">Debe: $<span x-text="Number(creditStatement.client?.credit_balance_usd||0).toFixed(2)"></span> · Límite: $<span x-text="Number(creditStatement.client?.credit_limit_usd||0).toFixed(2)"></span></div>
           </div>
-          <table class="w-full text-sm">
-            <thead class="text-slate-400 text-left">
-              <tr class="border-b border-slate-700">
-                <th class="py-1 pr-2">Fecha</th>
-                <th class="py-1 pr-2">Tipo</th>
-                <th class="py-1 pr-2 text-right">Monto</th>
-                <th class="py-1 pr-2 text-right">Saldo</th>
-                <th class="py-1">Nota</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="e in creditStatement.entries" :key="e.id">
-                <tr class="border-b border-slate-800/60">
-                  <td class="py-1 pr-2 text-slate-400 whitespace-nowrap" x-text="new Date(e.created_at).toLocaleDateString('es-VE')"></td>
-                  <td class="py-1 pr-2 text-slate-300" x-text="e.entry_type"></td>
-                  <td class="py-1 pr-2 text-right font-mono" :class="Number(e.amount_usd) < 0 ? 'text-emerald-400' : 'text-rose-400'" x-text="'$'+Number(e.amount_usd).toFixed(2)"></td>
-                  <td class="py-1 pr-2 text-right font-mono text-slate-200" x-text="'$'+Number(e.balance_after_usd).toFixed(2)"></td>
-                  <td class="py-1 text-slate-400 truncate max-w-[10rem]" x-text="e.note || ''"></td>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[560px] text-sm">
+              <thead class="text-slate-400 text-left">
+                <tr class="border-b border-slate-700">
+                  <th class="py-1 pr-2">Fecha</th>
+                  <th class="py-1 pr-2">Tipo</th>
+                  <th class="py-1 pr-2 text-right">Monto</th>
+                  <th class="py-1 pr-2 text-right">Saldo</th>
+                  <th class="py-1">Nota</th>
                 </tr>
-              </template>
-              <template x-if="creditStatement.entries.length === 0">
-                <tr><td colspan="5" class="py-4 text-center text-slate-500">Sin movimientos.</td></tr>
-              </template>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <template x-for="e in creditStatement.entries" :key="e.id">
+                  <tr class="border-b border-slate-800/60">
+                    <td class="py-1 pr-2 text-slate-400 whitespace-nowrap" x-text="new Date(e.created_at).toLocaleDateString('es-VE')"></td>
+                    <td class="py-1 pr-2 text-slate-300" x-text="e.entry_type"></td>
+                    <td class="py-1 pr-2 text-right font-mono" :class="Number(e.amount_usd) < 0 ? 'text-emerald-400' : 'text-rose-400'" x-text="'$'+Number(e.amount_usd).toFixed(2)"></td>
+                    <td class="py-1 pr-2 text-right font-mono text-slate-200" x-text="'$'+Number(e.balance_after_usd).toFixed(2)"></td>
+                    <td class="py-1 text-slate-400 truncate max-w-[10rem]" x-text="e.note || ''"></td>
+                  </tr>
+                </template>
+                <template x-if="creditStatement.entries.length === 0">
+                  <tr><td colspan="5" class="py-4 text-center text-slate-500">Sin movimientos.</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
         </div>
       </template>
       <div class="mt-4 flex justify-between gap-2 shrink-0">

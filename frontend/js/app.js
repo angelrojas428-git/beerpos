@@ -57,6 +57,7 @@ function app() {
     staffForm: { name: '', pin: '', role: 'bartender' },
     view: 'login', // 'login' | 'bartender' | 'client' | 'display'
     tab: 'fast',
+    mobileMenuOpen: false,
     darkMode: false,
     installPrompt: null,
     showInstallBanner: false,
