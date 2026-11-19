@@ -21,6 +21,7 @@ COPY --from=builder /app/backend/src ./backend/src
 COPY --from=builder /app/backend/scripts ./backend/scripts
 COPY --from=builder /app/frontend ./frontend
 COPY db/ ./db/
+COPY docs/ ./docs/
 # Persistent data (sessions) and uploaded logos.
 RUN mkdir -p /app/data /app/backend/uploads
 EXPOSE 3001
