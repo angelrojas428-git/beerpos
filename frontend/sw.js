@@ -1,4 +1,4 @@
-const CACHE = 'beerpos-v10';
+const CACHE = 'beerpos-v11';
 const ASSETS = ['/', '/index.html', '/css/app.css', '/dist/app.js', '/dist/tailwind.css', '/manifest.webmanifest', '/assets/icon.svg'];
 const DB_NAME = 'beerpos-offline';
 const STORE_NAME = 'fast-sales';
@@ -20,8 +20,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+
   // Never cache API requests — always pass through to network
-  if (requestUrl.origin === self.location.origin && requestUrl.pathname.startsWith('/api/')) {
+  if (requestUrl.pathname.startsWith('/api/')) {
     if (event.request.method === 'POST'
       && requestUrl.pathname === '/api/redemptions/fast'
       && event.request.headers.get('X-Background-Sync') === 'true') {
@@ -35,7 +37,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     try {
       const response = await fetch(event.request);
-      if (response.ok && requestUrl.origin === self.location.origin) {
+      if (response.ok) {
         const cache = await caches.open(CACHE);
         await cache.put(event.request, response.clone());
       }
