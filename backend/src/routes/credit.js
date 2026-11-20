@@ -207,6 +207,7 @@ router.post('/clients/:id/limit', requireStaffSession, requireOwnerRole, async (
       staffId: req.staff?.id,
       ip: req.ip,
     });
+    notify(req.establishmentId, { client_id: req.params.id, credit_limit_usd: result.credit_limit_usd, credit_balance_usd: result.credit_balance_usd });
     res.json(result);
   } catch (e) {
     if (e instanceof CreditError) return res.status(e.status).json({ error: e.message, code: e.code });

@@ -752,6 +752,7 @@
                       <template x-if="isOwner()">
                         <div class="flex gap-1 flex-wrap">
                           <button @click="setCreditLimit(c)" class="px-2 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs" title="Asignar límite de crédito">Límite</button>
+                          <button @click="removeCredit(c)" :disabled="Number(c.credit_limit_usd||0) <= 0" class="px-2 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs disabled:opacity-40 disabled:cursor-not-allowed" title="Quitar crédito (poner límite en $0)">Quitar</button>
                           <button @click="toggleCreditHold(c)" :class="c.credit_hold_reason ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-slate-600 hover:bg-slate-500 text-slate-200'" class="px-2 py-2 rounded-xl font-semibold text-xs" x-text="c.credit_hold_reason ? 'Desbloquear' : 'Bloquear'" title="Bloquear/desbloquear crédito"></button>
                           <button @click="creditAdjust(c)" class="px-2 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs" title="Ajuste de saldo (owner)">Ajustar</button>
                           <button @click="creditNote(c)" :disabled="Number(c.credit_balance_usd||0) <= 0" class="px-2 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs disabled:opacity-40 disabled:cursor-not-allowed" title="Nota de crédito (owner)">N/Créd.</button>

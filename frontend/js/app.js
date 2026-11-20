@@ -766,7 +766,10 @@ function app() {
       this.sse.addEventListener('credit_updated', (e) => {
         const data = JSON.parse(e.data);
         this.clients = this.clients.map(c => c.id === data.client_id
-          ? { ...c, credit_balance_usd: data.balance_after_usd }
+          ? { ...c, 
+              credit_balance_usd: data.credit_balance_usd ?? data.balance_after_usd,
+              credit_limit_usd: data.credit_limit_usd ?? c.credit_limit_usd
+            }
           : c);
         if (this.creditClients.length) this.loadCredit();
       });
@@ -824,7 +827,10 @@ function app() {
       this.socket.on('credit_updated', (data) => {
         if (this.view !== 'bartender') return;
         this.clients = this.clients.map(c => c.id === data.client_id
-          ? { ...c, credit_balance_usd: data.balance_after_usd }
+          ? { ...c, 
+              credit_balance_usd: data.credit_balance_usd ?? data.balance_after_usd,
+              credit_limit_usd: data.credit_limit_usd ?? c.credit_limit_usd
+            }
           : c);
         if (this.creditClients.length) this.loadCredit();
       });
@@ -1045,6 +1051,14 @@ function app() {
           this.loadClient().then(() => {
             this.showToast('error', 'Pedido expirado', 'Tu solicitud expiró por inactividad. Tu saldo fue liberado.', true, this.client.current_balance);
           });
+        }
+      });
+      sse.addEventListener('credit_updated', (e) => {
+        const data = JSON.parse(e.data);
+        if (this.client && data.client_id === this.client.id) {
+          this.client.credit_balance_usd = data.credit_balance_usd ?? data.balance_after_usd;
+          this.client.credit_limit_usd = data.credit_limit_usd ?? this.client.credit_limit_usd;
+          this.loadClient();
         }
       });
       sse.addEventListener('ping', () => {});
@@ -1954,6 +1968,21 @@ function app() {
         c.available_usd = Number(res.credit_limit_usd) - Number(res.credit_balance_usd);
         await this.loadCredit();
         this.showToast('success', 'Límite actualizado', `Cupo de ${c.full_name}: $${Number(res.credit_limit_usd).toFixed(2)}`);
+      } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async removeCredit(c) {
+      if (Number(c.credit_limit_usd || 0) <= 0) return this.showToast('info', 'Sin crédito', 'Este cliente no tiene crédito habilitado.');
+      if (!confirm(`¿Quitar TODO el crédito (fiado) a ${c.full_name}?\n\nEsto pondrá el límite en $0.00.\nDeuda actual: $${Number(c.credit_balance_usd || 0).toFixed(2)}`)) return;
+      try {
+        const res = await this.api(`/credit/clients/${c.id}/limit`, {
+          method: 'POST',
+          body: JSON.stringify({ credit_limit_usd: 0 })
+        });
+        c.credit_limit_usd = res.credit_limit_usd;
+        c.credit_balance_usd = res.credit_balance_usd;
+        c.available_usd = Number(res.credit_limit_usd) - Number(res.credit_balance_usd);
+        await this.loadCredit();
+        this.showToast('success', 'Crédito removido', `${c.full_name} ya no tiene cupo de fiado.`);
       } catch (e) { this.showToast('error', 'Error', e.message); }
     },
     async toggleCreditHold(c) {
