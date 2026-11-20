@@ -125,15 +125,15 @@ router.get('/report/:establishmentId', requireStaffSession, async (req, res, nex
       GROUP BY s.id, s.name
       ORDER BY beers_dispatched DESC`;
     const daily = `
-      SELECT created_at::date as day,
+      SELECT date_trunc('hour', created_at) as hour_bucket,
              COALESCE(SUM(CASE WHEN transaction_type IN ('COMBO_PURCHASE','CREDIT_SALE') THEN quantity ELSE 0 END),0) as beers_sold,
              COALESCE(SUM(CASE WHEN transaction_type='REDEMPTION' THEN quantity ELSE 0 END),0) as beers_dispatched,
              COALESCE(SUM(CASE WHEN transaction_type <> 'CREDIT_PAYMENT' THEN amount_usd ELSE 0 END),0) as revenue_usd,
              COALESCE(SUM(CASE WHEN transaction_type <> 'CREDIT_PAYMENT' THEN amount_ves ELSE 0 END),0) as revenue_ves
       FROM transactions t
       WHERE establishment_id = $1 AND ${dateCond}${extraCond}
-      GROUP BY created_at::date
-      ORDER BY day`;
+      GROUP BY date_trunc('hour', created_at)
+      ORDER BY hour_bucket`;
 
     const [r, d, day] = await Promise.all([
       query(report, params),

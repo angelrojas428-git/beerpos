@@ -528,14 +528,14 @@
             <p x-show="hourly.length === 0" class="text-xs text-slate-500 mt-2">Sin ventas en el período seleccionado.</p>
           </div>
 
-          <!-- Daily breakdown -->
+          <!-- Hourly breakdown -->
           <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 min-w-0 overflow-hidden">
-            <h3 class="font-bold mb-3 truncate">Desglose diario</h3>
+            <h3 class="font-bold mb-3 truncate">Desglose por hora</h3>
             <div class="table-wrap">
               <table class="w-full text-sm text-left">
                 <thead class="text-xs uppercase text-slate-400 border-b border-slate-700">
                   <tr>
-                    <th class="py-2 pr-4 whitespace-nowrap">Fecha</th>
+                    <th class="py-2 pr-4 whitespace-nowrap">Fecha y Hora</th>
                     <th class="py-2 pr-4 text-right whitespace-nowrap">Vendidas</th>
                     <th class="py-2 pr-4 text-right whitespace-nowrap">Despachadas</th>
                     <th class="py-2 pr-4 text-right whitespace-nowrap">USD</th>
@@ -543,9 +543,9 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <template x-for="day in (report?.daily_breakdown || [])" :key="day.day">
+                  <template x-for="day in (report?.daily_breakdown || [])" :key="day.hour_bucket">
                     <tr class="border-b border-slate-800 last:border-0">
-                      <td class="py-3 pr-4 whitespace-nowrap" x-text="day.day"></td>
+                      <td class="py-3 pr-4 whitespace-nowrap" x-text="formatDateTime(day.hour_bucket)"></td>
                       <td class="py-3 pr-4 text-right" x-text="day.beers_sold"></td>
                       <td class="py-3 pr-4 text-right" x-text="day.beers_dispatched"></td>
                       <td class="py-3 pr-4 text-right whitespace-nowrap">$<span x-text="money(day.revenue_usd)"></span></td>
