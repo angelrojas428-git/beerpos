@@ -74,6 +74,7 @@ router.post('/', async (req, res, next) => {
       `SELECT 1 FROM client_passkeys WHERE client_id = $1 AND establishment_id = $2 LIMIT 1`,
       [client_id, establishment_id]
     );
+    let passkeyAuthorized = false;
     if (clientToken && enrolledPasskeys.length) {
       if (!passkeyAuthorization) {
         await db.query('ROLLBACK');
@@ -90,6 +91,7 @@ router.post('/', async (req, res, next) => {
         await db.query('ROLLBACK');
         return res.status(401).json({ error: 'Passkey authorization is invalid, expired or bound to another quantity' });
       }
+      passkeyAuthorized = true;
     }
 
     // Block the balance (reserve it) - we subtract now but mark as pending
@@ -97,10 +99,10 @@ router.post('/', async (req, res, next) => {
 
     const { rows } = await db.query(
       `INSERT INTO client_orders
-       (establishment_id, client_id, quantity, status, expires_at)
-       VALUES ($1, $2, $3, 'SOLICITADO', $4)
+       (establishment_id, client_id, quantity, status, expires_at, passkey_authorized)
+       VALUES ($1, $2, $3, 'SOLICITADO', $4, $5)
        RETURNING *`,
-      [establishment_id, client_id, qty, expiresAt]
+      [establishment_id, client_id, qty, expiresAt, passkeyAuthorized]
     );
     const order = rows[0];
 
@@ -115,7 +117,8 @@ router.post('/', async (req, res, next) => {
       quantity: qty,
       status: 'SOLICITADO',
       requested_at: order.requested_at,
-      expires_at: order.expires_at
+      expires_at: order.expires_at,
+      passkey_authorized: order.passkey_authorized
     };
     emitToRoom('client_order', payload, establishment_id);
     broadcastSse('client_order', payload, establishment_id);
@@ -238,7 +241,8 @@ router.patch('/:id/accept', requireStaffSession, async (req, res, next) => {
       establishment_id: order.establishment_id,
       quantity: order.quantity,
       status: 'EN_PREPARACION',
-      staff_id: session.staff?.id || null
+      staff_id: session.staff?.id || null,
+      passkey_authorized: order.passkey_authorized
     };
     emitToRoom('client_order_accepted', payload, order.establishment_id);
     broadcastSse('client_order_accepted', payload, order.establishment_id);
@@ -252,15 +256,12 @@ router.patch('/:id/accept', requireStaffSession, async (req, res, next) => {
   }
 });
 
-// Deliver order: marca como ENTREGADO (requiere código de verificación del cliente)
+// Deliver order: marca como ENTREGADO (requiere código de verificación del cliente, a menos que haya autorizado con passkey)
 router.patch('/:id/deliver', requireStaffSession, async (req, res, next) => {
   const { id } = req.params;
   const session = req.session;
 
   const { verification_code } = req.body || {};
-  if (!verification_code || !/^\d{4}$/.test(String(verification_code))) {
-    return res.status(400).json({ error: 'Código de verificación de 4 dígitos requerido para entregar' });
-  }
 
   let db;
   try {
@@ -268,8 +269,8 @@ router.patch('/:id/deliver', requireStaffSession, async (req, res, next) => {
     await db.query('BEGIN');
 
     // Verify order exists and is in EN_PREPARACION state
-    const { rows: orderRows } = await db.query(
-      `SELECT co.*, c.establishment_id, c.verification_code, c.verification_code_expires_at
+const { rows: orderRows } = await db.query(
+      `SELECT co.*, c.establishment_id, c.verification_code, c.verification_code_expires_at, co.passkey_authorized
        FROM client_orders co
        JOIN clients c ON c.id = co.client_id
        WHERE co.id = $1 AND co.establishment_id = $2
@@ -286,16 +287,24 @@ router.patch('/:id/deliver', requireStaffSession, async (req, res, next) => {
       return res.status(409).json({ error: 'Order is not in EN_PREPARACION state' });
     }
 
-    // Verify client's verification code
-    const now = new Date();
-    const codeValid = order.verification_code &&
-      order.verification_code === String(verification_code) &&
-      order.verification_code_expires_at &&
-      new Date(order.verification_code_expires_at) > now;
+    // If passkey was used to authorize the order, skip verification code check
+    if (!order.passkey_authorized) {
+      if (!verification_code || !/^\d{4}$/.test(String(verification_code))) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({ error: 'Código de verificación de 4 dígitos requerido para entregar' });
+      }
 
-    if (!codeValid) {
-      await db.query('ROLLBACK');
-      return res.status(401).json({ error: 'Código de verificación inválido o expirado. Pida al cliente que muestre su código actual.' });
+      // Verify client's verification code
+      const now = new Date();
+      const codeValid = order.verification_code &&
+        order.verification_code === String(verification_code) &&
+        order.verification_code_expires_at &&
+        new Date(order.verification_code_expires_at) > now;
+
+      if (!codeValid) {
+        await db.query('ROLLBACK');
+        return res.status(401).json({ error: 'Código de verificación inválido o expirado. Pida al cliente que muestre su código actual.' });
+      }
     }
 
     // Verify client has sufficient balance at delivery time
@@ -350,7 +359,8 @@ router.patch('/:id/deliver', requireStaffSession, async (req, res, next) => {
       establishment_id: order.establishment_id,
       quantity: order.quantity,
       status: 'ENTREGADO',
-      new_balance: newBalance
+      new_balance: newBalance,
+      passkey_authorized: order.passkey_authorized
     };
     emitToRoom('client_order_delivered', payload, order.establishment_id);
     broadcastSse('client_order_delivered', payload, order.establishment_id);
@@ -415,7 +425,8 @@ router.patch('/:id/cancel', requireStaffSession, async (req, res, next) => {
       client_id: order.client_id,
       establishment_id: order.establishment_id,
       quantity: order.quantity,
-      status: 'CANCELADO'
+      status: 'CANCELADO',
+      passkey_authorized: order.passkey_authorized
     };
     emitToRoom('client_order_cancelled', payload, order.establishment_id);
     broadcastSse('client_order_cancelled', payload, order.establishment_id);

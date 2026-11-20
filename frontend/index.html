@@ -1174,6 +1174,7 @@
                 <button @click="undoCharge(c)" :disabled="c.current_balance < 1" class="btn-icon w-12 h-12 rounded-xl bg-rose-600 hover:bg-rose-500 text-slate-950 font-bold text-lg disabled:opacity-40 disabled:cursor-not-allowed shadow-lg active:scale-95 shrink-0" title="Deshacer / restar carga">↩</button>
                 <template x-if="isOwner()">
                   <button @click="setCreditLimit(c)" class="btn-icon w-12 h-12 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-lg shadow-lg active:scale-95 shrink-0" title="Asignar límite de crédito">💳</button>
+                  <button @click="deleteClient(c)" class="btn-icon w-12 h-12 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-lg shadow-lg active:scale-95 shrink-0" title="Eliminar cliente">🗑</button>
                 </template>
               </div>
             </div>

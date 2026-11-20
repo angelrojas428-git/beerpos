@@ -582,7 +582,6 @@ function app() {
               expires_at: res.expires_at
             }));
             this.codeSecondsLeft = 60;
-            this.showToast('info', 'Código renovado', 'Se generó un nuevo código automáticamente.');
           } catch (e) { console.warn('No se pudo renovar código al llegar a 0:', e.message); }
         }
       };
@@ -625,7 +624,6 @@ function app() {
           code: res.code,
           expires_at: res.expires_at
         }));
-        this.showToast('info', 'Código renovado', 'Nuevo código generado. Válido por 60 segundos.');
       } catch (e) { this.showToast('error', 'Error', 'No se pudo renovar el código.'); }
     },
     async requestWithdrawal() {
@@ -1798,9 +1796,16 @@ function app() {
     },
     async deliverOrder(orderId) {
       try {
-        // Pedir código de verificación que el cliente muestra en su pantalla
-        const code = prompt('Ingrese el código de verificación de 4 dígitos que muestra el cliente en su pantalla:');
-        if (!code) return;
+        // Obtener el pedido para verificar si fue autorizado con passkey
+        const order = this.pendingOrders.find(o => o.id === orderId);
+        
+        let code = null;
+        // Si NO fue autorizado con passkey, pedir código de verificación
+        if (!order?.passkey_authorized) {
+          code = prompt('Ingrese el código de verificación de 4 dígitos que muestra el cliente en su pantalla:');
+          if (!code) return;
+        }
+        
         const res = await this.api(`/client-orders/${orderId}/deliver`, {
           method: 'PATCH',
           body: JSON.stringify({ verification_code: code })
@@ -1983,6 +1988,15 @@ function app() {
         c.available_usd = Number(res.credit_limit_usd) - Number(res.credit_balance_usd);
         await this.loadCredit();
         this.showToast('success', 'Crédito removido', `${c.full_name} ya no tiene cupo de fiado.`);
+      } catch (e) { this.showToast('error', 'Error', e.message); }
+    },
+    async deleteClient(c) {
+      if (!confirm(`¿Eliminar PERMANENTEMENTE a ${c.full_name}?\n\nEsta acción NO se puede deshacer.\nSe eliminarán todos sus datos (historial, saldo, fiado, etc.)`)) return;
+      try {
+        await this.api(`/clients/${c.id}`, { method: 'DELETE' });
+        this.clients = this.clients.filter(client => client.id !== c.id);
+        if (this.lastRegistered?.id === c.id) this.lastRegistered = null;
+        this.showToast('success', 'Cliente eliminado', `${c.full_name} fue removido del sistema.`);
       } catch (e) { this.showToast('error', 'Error', e.message); }
     },
     async toggleCreditHold(c) {

@@ -464,4 +464,30 @@ router.post('/:id/redeem-points', requireStaffSession, async (req, res, next) =>
   } catch (e) { next(e); }
 });
 
+// Delete client (owner only) - requires no pending transactions/orders
+router.delete('/:id', requireStaffSession, async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const client = await query('SELECT id, establishment_id FROM clients WHERE id = $1', [id]);
+    if (!client.rows[0]) return res.status(404).json({ error: 'Client not found' });
+    if (Number(client.rows[0].establishment_id) !== Number(req.establishmentId)) return res.status(403).json({ error: 'Forbidden' });
+
+    // Check for pending client orders
+    const pendingOrders = await query('SELECT 1 FROM client_orders WHERE client_id = $1 AND status IN (\'SOLICITADO\', \'EN_PREPARACION\')', [id]);
+    if (pendingOrders.rowCount > 0) {
+      return res.status(409).json({ error: 'No se puede eliminar: tiene pedidos pendientes' });
+    }
+
+    // Check for credit balance
+    const credit = await query('SELECT credit_balance_usd FROM clients WHERE id = $1', [id]);
+    if (Number(credit.rows[0]?.credit_balance_usd || 0) > 0) {
+      return res.status(409).json({ error: 'No se puede eliminar: tiene deuda de fiado pendiente' });
+    }
+
+    // Delete client (cascades to transactions, client_fingerprints, client_orders, etc. via FK)
+    await query('DELETE FROM clients WHERE id = $1', [id]);
+    res.json({ ok: true, message: 'Cliente eliminado correctamente' });
+  } catch (e) { next(e); }
+});
+
 export default router;
